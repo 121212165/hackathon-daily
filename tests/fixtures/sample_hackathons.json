@@ -1,0 +1,26 @@
+[
+  {
+    "name": "示例AI黑客松",
+    "organizer": "示例主办方",
+    "type_tag": "AI",
+    "summary": "面向AI开发者的线上马拉松",
+    "registration_deadline": "2026-08-01",
+    "start_date": "2026-08-15",
+    "end_date": "2026-08-17",
+    "location": "线上",
+    "registration_url": "https://example.com/register",
+    "detail_url": "https://example.com"
+  },
+  {
+    "name": "极简赛事",
+    "organizer": "未知",
+    "type_tag": "未知",
+    "summary": "",
+    "registration_deadline": "待定",
+    "start_date": "待定",
+    "end_date": "待定",
+    "location": "线上",
+    "registration_url": "https://example.com/minimal",
+    "detail_url": null
+  }
+]
