@@ -80,9 +80,10 @@ class GLMSearchProvider(LLMSearchProvider):
         self.timeout = timeout
 
     async def search(self, today: str) -> list[Hackathon]:
+        user_msg = f"今天是 {today}。请搜索当前中国大陆地区仍可报名或正在进行中的线上黑客松。"
         base_messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"今天是 {today}。请搜索当前中国大陆地区仍可报名或正在进行中的线上黑客松。"},
+            {"role": "user", "content": user_msg},
         ]
         headers = {
             "Authorization": f"Bearer {self.api_key}",

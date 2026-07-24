@@ -5,7 +5,6 @@ import pytest
 
 from src.llm_search import GLMSearchProvider
 
-
 SAMPLE_LLM_RESPONSE = {
     "choices": [
         {
