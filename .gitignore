@@ -9,6 +9,7 @@ venv/
 # IDE
 .vscode/
 .idea/
+.trae/
 
 # Tests
 .pytest_cache/
@@ -18,3 +19,7 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# Design mockups (out of MVP scope, see spec section 2.2)
+# Kept locally for reference but not tracked in repo
+hackathon-daily-web/
