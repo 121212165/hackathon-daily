@@ -116,6 +116,18 @@ class GLMSearchProvider(LLMSearchProvider):
             "model": self.model,
             "messages": messages,
             "stream": False,
+            # 智谱"Web Search in Chat"：通过 tools 启用 web_search 工具
+            # 模型本身用免费的 glm-4-flash，搜索引擎 search_std 按 ¥0.01/次 计费
+            "tools": [
+                {
+                    "type": "web_search",
+                    "web_search": {
+                        "enable": True,
+                        "search_engine": "search_std",
+                        "search_result": True,
+                    },
+                }
+            ],
         }
 
         last_http_exc: Exception | None = None
