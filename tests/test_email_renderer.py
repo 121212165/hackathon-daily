@@ -117,3 +117,15 @@ def test_safe_url_handles_empty_and_none():
 def test_safe_url_preserves_query_and_fragment():
     assert safe_url("https://example.com/r?a=1&b=2") == "https://example.com/r?a=1&b=2"
     assert safe_url("https://example.com/r#section") == "https://example.com/r#section"
+
+
+def test_safe_url_strips_control_characters():
+    """控制字符（\\t\\n\\r 等）应被过滤，防止污染邮件 href 属性。"""
+    # 控制字符被去除后保留合法 URL
+    assert safe_url("https://example.com/register\n") == "https://example.com/register"
+    assert safe_url("https://example.com/a\tb") == "https://example.com/ab"
+    assert safe_url("https://example.com\r\n") == "https://example.com"
+    # 含 onclick 注入企图的 URL：控制字符被剥，保留原 URL 文本（autoescape 会处理 HTML 字符）
+    assert (
+        safe_url("https://example.com\tonclick=alert(1)") == "https://example.comonclick=alert(1)"
+    )

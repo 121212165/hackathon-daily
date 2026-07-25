@@ -11,6 +11,9 @@ TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 # 匹配 markdown 链接 [text](url) 形式
 _MARKDOWN_LINK_RE = re.compile(r"^\[.*?\]\((.+?)\)$")
 
+# 控制字符（C0 + DEL）— 邮件 href 中不应出现，防止 LLM 返回被污染的 URL
+_CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f]")
+
 
 def safe_url(url: str) -> str:
     """规范化 URL，确保 href 可被邮件客户端正确识别为绝对链接。
@@ -19,9 +22,10 @@ def safe_url(url: str) -> str:
     1. 空值/非字符串 → "#"
     2. 去除首尾空白
     3. 剥离 markdown 链接包裹（[text](url) → url）和尖括号 <url>
-    4. 已是 http/https → 原样返回
-    5. 无 scheme 但形如域名（www.xxx 或 xxx.yyy/...）→ 补 https://
-    6. 其他（javascript:、mailto:、纯文本等）→ "#"
+    4. 去除控制字符（防止 href 属性被污染）
+    5. 已是 http/https → 原样返回
+    6. 无 scheme 但形如域名（www.xxx 或 xxx.yyy/...）→ 补 https://
+    7. 其他（javascript:、mailto:、纯文本等）→ "#"
     """
     if not url or not isinstance(url, str):
         return "#"
@@ -36,6 +40,9 @@ def safe_url(url: str) -> str:
     # 剥离尖括号包裹 <url>
     if url.startswith("<") and url.endswith(">"):
         url = url[1:-1].strip()
+
+    # 去除控制字符（\t \n \r 等），防止 LLM 返回的 URL 污染 href 属性
+    url = _CONTROL_CHARS_RE.sub("", url)
 
     if not url:
         return "#"

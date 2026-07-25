@@ -33,10 +33,15 @@ async def main() -> int:
     today = beijing_today()
     logger.info(f"Starting hackathon daily for {today}")
 
-    # 1. 搜索
+    # 前置检查所有必填环境变量，避免 LLM 调用后才发现邮件配置缺失而浪费计费
     llm_api_key = _require_env("LLM_API_KEY")
-    if not llm_api_key:
+    resend_api_key = _require_env("RESEND_API_KEY")
+    mail_from = _require_env("MAIL_FROM")
+    mail_to = _require_env("MAIL_TO")
+    if not all([llm_api_key, resend_api_key, mail_from, mail_to]):
         return 1
+
+    # 1. 搜索
     provider = GLMSearchProvider(
         api_key=llm_api_key,
         base_url=os.environ.get("LLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4/"),
@@ -57,11 +62,6 @@ async def main() -> int:
     subject, html = render_email(hackathons, today)
 
     # 3. 发送
-    resend_api_key = _require_env("RESEND_API_KEY")
-    mail_from = _require_env("MAIL_FROM")
-    mail_to = _require_env("MAIL_TO")
-    if not (resend_api_key and mail_from and mail_to):
-        return 1
     mailer = ResendMailer(
         api_key=resend_api_key,
         from_email=mail_from,
