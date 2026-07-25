@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import re
 from abc import ABC, abstractmethod
 
 import httpx
@@ -85,31 +86,15 @@ class GLMSearchProvider(LLMSearchProvider):
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_msg},
         ]
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
-        url = f"{self.base_url}/chat/completions"
 
-        last_http_exc: Exception | None = None
         json_hint_used = False
-
-        for attempt in range(3):
+        for _ in range(2):
             messages = list(base_messages)
             if json_hint_used:
                 messages.append({"role": "user", "content": JSON_HINT})
-            payload = {
-                "model": self.model,
-                "messages": messages,
-                "stream": False,
-            }
             try:
-                async with httpx.AsyncClient(timeout=self.timeout) as client:
-                    resp = await client.post(url, json=payload, headers=headers)
-                    resp.raise_for_status()
-                    data = resp.json()
-                    content = data["choices"][0]["message"]["content"]
-                    return self._parse(content)
+                content = await self._call_api(messages)
+                return self._parse(content)
             except ValueError as e:
                 # JSON 解析错误：重试 1 次带 hint，仍失败则跳过当次发送（返回空列表）
                 if not json_hint_used:
@@ -118,23 +103,44 @@ class GLMSearchProvider(LLMSearchProvider):
                     continue
                 logger.error(f"JSON parse failed after hint retry, skipping send: {e}")
                 return []
+        return []  # 不可达，保险兜底
+
+    async def _call_api(self, messages: list[dict]) -> str:
+        """调用 LLM API。HTTP/网络错误重试 2 次（指数退避 1s, 4s），仍失败抛 RuntimeError。"""
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        url = f"{self.base_url}/chat/completions"
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "stream": False,
+        }
+
+        last_http_exc: Exception | None = None
+        for attempt in range(3):
+            try:
+                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                    resp = await client.post(url, json=payload, headers=headers)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    return data["choices"][0]["message"]["content"]
             except Exception as e:
-                # HTTP/网络错误：重试 2 次，指数退避
                 last_http_exc = e
                 logger.warning(f"GLM search attempt {attempt + 1} failed: {e}")
                 if attempt < 2:
-                    await asyncio.sleep(2 ** attempt)
+                    await asyncio.sleep(4 ** attempt)
         raise RuntimeError(f"GLM search failed after retries: {last_http_exc}")
 
     @staticmethod
     def _parse(content: str) -> list[Hackathon]:
         """解析 LLM 返回的内容为 Hackathon 列表。"""
         text = content.strip()
-        # 清理 markdown 代码块标记
-        if text.startswith("```"):
-            text = text.split("\n", 1)[1] if "\n" in text else text
-            text = text.rsplit("```", 1)[0]
-        text = text.strip()
+        # 剥离 markdown 代码块围栏（支持单行 ```json [...] ``` 与多行形式）
+        fence = re.match(r"^\s*```(?:json)?\s*(.*?)\s*```\s*$", text, re.DOTALL)
+        if fence:
+            text = fence.group(1).strip()
 
         try:
             arr = json.loads(text)

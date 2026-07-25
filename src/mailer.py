@@ -47,5 +47,5 @@ class ResendMailer(Mailer):
                 last_exc = e
                 logger.warning(f"Resend attempt {attempt + 1} failed: {e}")
                 if attempt < 2:
-                    await asyncio.sleep(2 ** attempt)
+                    await asyncio.sleep(4 ** attempt)
         raise RuntimeError(f"Resend send failed after retries: {last_exc}")

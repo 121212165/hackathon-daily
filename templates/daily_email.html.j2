@@ -2,39 +2,199 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>黑客松日报 - {{ today }}</title>
 </head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; max-width: 640px; margin: 0 auto; padding: 20px; color: #333;">
-  <h1 style="color: #1a1a1a; border-bottom: 2px solid #4f46e5; padding-bottom: 10px;">
-    黑客松日报
-  </h1>
-  <p style="color: #666; font-size: 14px;">{{ today }} · 共 {{ count }} 场可报名</p>
+<body bgcolor="#0f0f10" style="margin: 0; padding: 0; background-color: #0f0f10; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 14px; color: #f4f9ff; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%;">
 
-  {% if not hackathons %}
-  <p>今日暂无可报名的线上黑客松。</p>
+<!-- Outer wrapper -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #0f0f10;">
+<tr>
+<td align="center" style="padding: 32px 16px;">
+
+<!-- Main content area: 640px max -->
+<table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0" style="max-width: 640px; width: 100%;">
+
+<!-- ==================== HEADER ==================== -->
+<tr>
+<td style="padding: 0 0 28px 0;">
+  <!-- Brand row -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <!-- Brand mark -->
+    <td width="48" valign="top" style="padding-right: 16px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td width="48" height="48" bgcolor="#ea343a" align="center" valign="middle" style="background-color: #ea343a; border-radius: 10px; width: 48px; height: 48px; text-align: center; vertical-align: middle; font-size: 20px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;">
+          HD
+        </td>
+      </tr>
+      </table>
+    </td>
+    <!-- Title block -->
+    <td valign="top">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding: 0 0 6px 0; font-size: 24px; font-weight: 700; color: #f4f9ff; line-height: 1.2;">
+          黑客松日报
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 0; font-size: 12px; color: #a0a4b0; font-family: 'SF Mono', 'Roboto Mono', Consolas, monospace; letter-spacing: 0.3px;">
+          {{ today }} &middot; 共 {{ count }} 场可报名
+        </td>
+      </tr>
+      </table>
+    </td>
+  </tr>
+  </table>
+</td>
+</tr>
+
+<!-- ==================== EMPTY STATE ==================== -->
+{% if not hackathons %}
+<tr>
+<td style="padding: 48px 24px; text-align: center;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td align="center" style="font-size: 15px; color: #a0a4b0; line-height: 1.6;">
+      今日暂无可报名的线上黑客松。
+    </td>
+  </tr>
+  </table>
+</td>
+</tr>
+{% endif %}
+
+<!-- ==================== HACKATHON CARDS ==================== -->
+{% for h in hackathons %}
+<tr>
+<td style="padding: 0 0 20px 0;">
+  <!-- Card outer -->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #111112; border: 1px solid #303136; border-radius: 16px; overflow: hidden; border-collapse: separate;">
+
+  <!-- Card top spacing -->
+  <tr><td style="height: 20px; font-size: 0; line-height: 0;">&nbsp;</td></tr>
+
+  <!-- Type tag + Name row -->
+  <tr>
+  <td style="padding: 0 24px 0 24px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <!-- Name column -->
+      <td style="padding: 0; font-size: 18px; font-weight: 700; color: #f4f9ff; line-height: 1.4; vertical-align: middle;">
+        {{ h.name }}
+      </td>
+      <!-- Type tag -->
+      <td width="1" style="font-size: 0; line-height: 0; width: 12px;">&nbsp;</td>
+      <td valign="middle" align="right" style="padding: 0;">
+        {% if h.type_tag == 'AI' %}
+        <span style="display: inline-block; padding: 3px 10px; background-color: rgba(234,52,58,0.15); color: #ea343a; border-radius: 6px; font-size: 12px; font-weight: 500; letter-spacing: 0.3px;">{{ h.type_tag }}</span>
+        {% elif h.type_tag == '全栈' %}
+        <span style="display: inline-block; padding: 3px 10px; background-color: rgba(89,56,255,0.15); color: #5938ff; border-radius: 6px; font-size: 12px; font-weight: 500; letter-spacing: 0.3px;">{{ h.type_tag }}</span>
+        {% elif h.type_tag == '数据' %}
+        <span style="display: inline-block; padding: 3px 10px; background-color: rgba(148,189,255,0.15); color: #94bdff; border-radius: 6px; font-size: 12px; font-weight: 500; letter-spacing: 0.3px;">{{ h.type_tag }}</span>
+        {% elif h.type_tag == '创意' %}
+        <span style="display: inline-block; padding: 3px 10px; background-color: rgba(224,112,255,0.15); color: #e070ff; border-radius: 6px; font-size: 12px; font-weight: 500; letter-spacing: 0.3px;">{{ h.type_tag }}</span>
+        {% else %}
+        <span style="display: inline-block; padding: 3px 10px; background-color: rgba(234,52,58,0.15); color: #ea343a; border-radius: 6px; font-size: 12px; font-weight: 500; letter-spacing: 0.3px;">{{ h.type_tag }}</span>
+        {% endif %}
+      </td>
+    </tr>
+    </table>
+  </td>
+  </tr>
+
+  <!-- Organizer -->
+  <tr>
+  <td style="padding: 8px 24px 0 24px; font-size: 13px; color: #a0a4b0;">
+    {{ h.organizer }}
+  </td>
+  </tr>
+
+  <!-- Summary -->
+  {% if h.summary %}
+  <tr>
+  <td style="padding: 12px 24px 0 24px; font-size: 14px; color: #c8cdd6; line-height: 1.7;">
+    {{ h.summary }}
+  </td>
+  </tr>
   {% endif %}
 
-  {% for h in hackathons %}
-  <div style="margin-bottom: 24px; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px;">
-    <h2 style="margin: 0 0 8px 0; color: #1a1a1a; font-size: 18px;">
-      {{ h.name }}
-      <span style="display: inline-block; padding: 2px 8px; background: #eef2ff; color: #4f46e5; border-radius: 4px; font-size: 12px; margin-left: 8px;">{{ h.type_tag }}</span>
-    </h2>
-    <p style="margin: 4px 0; color: #666; font-size: 14px;">主办方：{{ h.organizer }}</p>
-    {% if h.summary %}<p style="margin: 8px 0; color: #333; font-size: 14px;">{{ h.summary }}</p>{% endif %}
-    <table style="width: 100%; font-size: 14px; margin: 8px 0;">
-      <tr><td style="color: #999; padding: 2px 0; width: 100px;">报名截止</td><td>{{ h.registration_deadline }}</td></tr>
-      <tr><td style="color: #999; padding: 2px 0;">比赛时间</td><td>{{ h.start_date }} ~ {{ h.end_date }}</td></tr>
-      <tr><td style="color: #999; padding: 2px 0;">地点</td><td>{{ h.location }}</td></tr>
+  <!-- Info table -->
+  <tr>
+  <td style="padding: 16px 24px 0 24px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
+    <tr>
+      <td style="padding: 5px 0; font-size: 12px; color: #a0a4b0; font-family: 'SF Mono', 'Roboto Mono', Consolas, monospace; width: 72px; vertical-align: top;">报名截止</td>
+      <td style="padding: 5px 0 5px 12px; font-size: 13px; color: #f4f9ff; vertical-align: top;">
+        {{ h.registration_deadline }}
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 5px 0; font-size: 12px; color: #a0a4b0; font-family: 'SF Mono', 'Roboto Mono', Consolas, monospace; vertical-align: top;">比赛时间</td>
+      <td style="padding: 5px 0 5px 12px; font-size: 13px; color: #f4f9ff; vertical-align: top;">{{ h.start_date }} ~ {{ h.end_date }}</td>
+    </tr>
+    <tr>
+      <td style="padding: 5px 0; font-size: 12px; color: #a0a4b0; font-family: 'SF Mono', 'Roboto Mono', Consolas, monospace; vertical-align: top;">地点</td>
+      <td style="padding: 5px 0 5px 12px; font-size: 13px; color: #f4f9ff; vertical-align: top;">{{ h.location }}</td>
+    </tr>
     </table>
-    <p style="margin: 12px 0 0 0;">
-      <a href="{{ h.registration_url }}" style="display: inline-block; padding: 8px 16px; background: #4f46e5; color: #fff; text-decoration: none; border-radius: 4px; font-size: 14px;">立即报名</a>
-      {% if h.detail_url %}<a href="{{ h.detail_url }}" style="display: inline-block; padding: 8px 16px; color: #4f46e5; text-decoration: none; font-size: 14px; margin-left: 8px;">详情</a>{% endif %}
-    </p>
-  </div>
-  {% endfor %}
+  </td>
+  </tr>
 
-  <hr style="margin-top: 32px; border: none; border-top: 1px solid #e5e7eb;">
-  <p style="color: #999; font-size: 12px;">本邮件由 Hackathon Daily 自动推送</p>
+  <!-- Buttons -->
+  <tr>
+  <td style="padding: 20px 24px 24px 24px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <!-- Primary button: 立即报名 -->
+      <td style="padding: 0;">
+        <a href="{{ h.registration_url | safe_url }}" target="_blank" style="display: inline-block; padding: 10px 24px; background-color: #ea343a; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 600; letter-spacing: 0.3px;">
+          立即报名
+        </a>
+      </td>
+      {% if h.detail_url %}
+      <!-- Ghost button: 详情 -->
+      <td width="12" style="font-size: 0; line-height: 0; width: 12px;">&nbsp;</td>
+      <td style="padding: 0;">
+        <a href="{{ h.detail_url | safe_url }}" target="_blank" style="display: inline-block; padding: 9px 23px; background-color: transparent; color: #f4f9ff; text-decoration: none; border: 1px solid #303136; border-radius: 8px; font-size: 14px; font-weight: 500; letter-spacing: 0.3px;">
+          详情
+        </a>
+      </td>
+      {% endif %}
+    </tr>
+    </table>
+  </td>
+  </tr>
+
+  </table>
+  <!-- Card end -->
+</td>
+</tr>
+{% endfor %}
+
+<!-- ==================== FOOTER ==================== -->
+<tr>
+<td style="padding: 12px 0 0 0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr><td style="padding: 0; border-top: 1px solid #303136; font-size: 0; line-height: 0;">&nbsp;</td></tr>
+  <tr>
+    <td style="padding: 20px 0 0 0; font-size: 12px; color: #a0a4b0; text-align: center; line-height: 1.6;">
+      本邮件由 Hackathon Daily 自动推送 &middot; Powered by AI Search
+    </td>
+  </tr>
+  </table>
+</td>
+</tr>
+
+</table>
+<!-- End main content -->
+
+</td>
+</tr>
+</table>
+<!-- End outer wrapper -->
+
 </body>
 </html>

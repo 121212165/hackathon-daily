@@ -20,14 +20,25 @@ def beijing_today() -> str:
     return datetime.now(tz).strftime("%Y-%m-%d")
 
 
+def _require_env(name: str) -> str | None:
+    """读取必填环境变量，缺失时记错误日志并返回 None。"""
+    value = os.environ.get(name)
+    if not value:
+        logger.error(f"{name} is missing")
+    return value
+
+
 async def main() -> int:
     load_dotenv()
     today = beijing_today()
     logger.info(f"Starting hackathon daily for {today}")
 
     # 1. 搜索
+    llm_api_key = _require_env("LLM_API_KEY")
+    if not llm_api_key:
+        return 1
     provider = GLMSearchProvider(
-        api_key=os.environ["LLM_API_KEY"],
+        api_key=llm_api_key,
         base_url=os.environ.get("LLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4/"),
         model=os.environ.get("LLM_MODEL", "glm-4-search"),
     )
@@ -46,10 +57,15 @@ async def main() -> int:
     subject, html = render_email(hackathons, today)
 
     # 3. 发送
+    resend_api_key = _require_env("RESEND_API_KEY")
+    mail_from = _require_env("MAIL_FROM")
+    mail_to = _require_env("MAIL_TO")
+    if not (resend_api_key and mail_from and mail_to):
+        return 1
     mailer = ResendMailer(
-        api_key=os.environ["RESEND_API_KEY"],
-        from_email=os.environ["MAIL_FROM"],
-        to_email=os.environ["MAIL_TO"],
+        api_key=resend_api_key,
+        from_email=mail_from,
+        to_email=mail_to,
     )
     try:
         await mailer.send(subject, html)
