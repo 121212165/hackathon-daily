@@ -1,6 +1,7 @@
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
 from src.llm_search import GLMSearchProvider
@@ -32,7 +33,6 @@ SAMPLE_LLM_RESPONSE = {
 }
 
 
-@pytest.mark.asyncio
 async def test_glm_search_parses_response():
     mock_response = MagicMock()
     mock_response.json.return_value = SAMPLE_LLM_RESPONSE
@@ -61,6 +61,16 @@ def test_parse_strips_markdown_codeblock():
     assert result[0].name == "X"
 
 
+def test_parse_strips_single_line_codeblock():
+    """单行 ```json [...] ``` 也应被正确剥离。"""
+    content = "```json" + json.dumps(
+        [{"name": "X", "registration_url": "https://x.com"}], ensure_ascii=False
+    ) + "```"
+    result = GLMSearchProvider._parse(content)
+    assert len(result) == 1
+    assert result[0].name == "X"
+
+
 def test_parse_skips_invalid_entries():
     content = json.dumps(
         [
@@ -75,20 +85,15 @@ def test_parse_skips_invalid_entries():
 
 
 def test_parse_raises_on_non_json():
-    import pytest as _pytest
-
-    with _pytest.raises(ValueError, match="invalid JSON"):
+    with pytest.raises(ValueError, match="invalid JSON"):
         GLMSearchProvider._parse("not json at all")
 
 
 def test_parse_raises_on_non_array():
-    import pytest as _pytest
-
-    with _pytest.raises(ValueError, match="non-array"):
+    with pytest.raises(ValueError, match="non-array"):
         GLMSearchProvider._parse(json.dumps({"not": "array"}))
 
 
-@pytest.mark.asyncio
 async def test_glm_search_retries_with_hint_on_json_error():
     """JSON 解析失败时，应附加 hint 重试一次。"""
     mock_response_bad = MagicMock()
@@ -117,7 +122,6 @@ async def test_glm_search_retries_with_hint_on_json_error():
     assert any(JSON_HINT in m.get("content", "") for m in second_call_messages)
 
 
-@pytest.mark.asyncio
 async def test_glm_search_returns_empty_list_after_hint_retry_fails():
     """JSON 解析在 hint 重试后仍失败，应返回空列表（静默跳过，不抛异常）。"""
     mock_response_bad = MagicMock()
@@ -135,3 +139,21 @@ async def test_glm_search_returns_empty_list_after_hint_retry_fails():
 
     assert result == []
     assert mock_client.post.await_count == 2
+
+
+async def test_glm_search_retries_on_http_error_then_raises():
+    """HTTP/网络错误重试 2 次（共 3 次尝试），仍失败抛 RuntimeError。"""
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(side_effect=httpx.ConnectError("conn refused"))
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.__aexit__.return_value = None
+
+    with patch("src.llm_search.httpx.AsyncClient", return_value=mock_client):
+        with patch("src.llm_search.asyncio.sleep", new=AsyncMock()):
+            with pytest.raises(RuntimeError, match="GLM search failed after retries"):
+                provider = GLMSearchProvider(
+                    api_key="test", base_url="https://api.test.com", model="test"
+                )
+                await provider.search("2026-07-24")
+
+    assert mock_client.post.await_count == 3

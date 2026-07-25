@@ -1,11 +1,8 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from src.mailer import ResendMailer
 
 
-@pytest.mark.asyncio
 async def test_resend_send_calls_api_correctly():
     mock_response = MagicMock()
     mock_response.json.return_value = {"id": "email-123"}
@@ -33,7 +30,6 @@ async def test_resend_send_calls_api_correctly():
     assert call_kwargs["headers"]["Authorization"] == "Bearer re_test"
 
 
-@pytest.mark.asyncio
 async def test_resend_send_retries_on_failure():
     mock_response_fail = MagicMock()
     mock_response_fail.raise_for_status.side_effect = Exception("500 error")

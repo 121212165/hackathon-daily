@@ -36,11 +36,12 @@ def test_render_email_displays_dates():
 
 
 def test_render_email_handles_missing_fields():
-    hackathons = _load_fixture()
+    hackathons = [Hackathon.from_dict({"registration_url": "https://example.com/only"})]
     _, html = render_email(hackathons, "2026-07-24")
-    # 缺失字段应渲染为「待定」/「未知」
+    # from_dict 默认填充：organizer/type_tag="未知"，deadline/start/end="待定"
     assert "待定" in html
     assert "未知" in html
+    assert "https://example.com/only" in html
 
 
 def test_render_email_displays_today():
