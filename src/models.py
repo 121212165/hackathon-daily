@@ -16,6 +16,7 @@ class Hackathon:
     location: str
     registration_url: str
     detail_url: str | None
+    source: str = "llm"
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "Hackathon":

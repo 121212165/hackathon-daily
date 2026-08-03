@@ -7,8 +7,9 @@ from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 
 from .email_renderer import render_email
-from .llm_search import GLMSearchProvider
 from .mailer import ResendMailer
+from .providers import build_provider_chain
+from .store import get_unseen, mark_pushed
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -28,6 +29,11 @@ def _require_env(name: str) -> str | None:
     return value
 
 
+def _parse_recipients(mail_to: str) -> list[str]:
+    """解析收件人：支持逗号分隔的多地址。"""
+    return [e.strip() for e in mail_to.split(",") if e.strip()]
+
+
 async def main() -> int:
     load_dotenv()
     today = beijing_today()
@@ -41,14 +47,17 @@ async def main() -> int:
     if not all([llm_api_key, resend_api_key, mail_from, mail_to]):
         return 1
 
-    # 1. 搜索
-    provider = GLMSearchProvider(
-        api_key=llm_api_key,
-        base_url=os.environ.get("LLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4/"),
-        model=os.environ.get("LLM_MODEL", "glm-4-search"),
-    )
+    recipients = _parse_recipients(mail_to)
+
+    # 1. 搜索（多 Provider 容错）
     try:
-        hackathons = await provider.search(today)
+        chain = build_provider_chain()
+    except ValueError as e:
+        logger.error(f"Failed to build provider chain: {e}")
+        return 1
+
+    try:
+        hackathons = await chain.search(today)
     except Exception as e:
         logger.error(f"LLM search failed: {e}")
         return 1
@@ -58,20 +67,31 @@ async def main() -> int:
         logger.info("No hackathons today, skip sending")
         return 0
 
-    # 2. 渲染
-    subject, html = render_email(hackathons, today)
+    # 2. 去重：仅推送未见过的
+    unseen = get_unseen(hackathons)
+    if not unseen:
+        logger.info("No new hackathons (all already pushed), skip sending")
+        return 0
 
-    # 3. 发送
+    logger.info(f"{len(unseen)} new hackathons to send")
+
+    # 3. 渲染
+    subject, html = render_email(unseen, today)
+
+    # 4. 发送
     mailer = ResendMailer(
         api_key=resend_api_key,
         from_email=mail_from,
-        to_email=mail_to,
+        to_email=recipients,
     )
     try:
         await mailer.send(subject, html)
     except Exception as e:
         logger.error(f"Send email failed: {e}")
         return 1
+
+    # 5. 标记已推送（仅发送成功后）
+    mark_pushed(unseen)
 
     logger.info("Done")
     return 0

@@ -15,10 +15,17 @@ class Mailer(ABC):
 class ResendMailer(Mailer):
     """通过 Resend API 发送邮件，带 2 次重试。"""
 
-    def __init__(self, api_key: str, from_email: str, to_email: str, timeout: float = 30.0):
+    def __init__(
+        self,
+        api_key: str,
+        from_email: str,
+        to_email: str | list[str],
+        timeout: float = 30.0,
+    ):
         self.api_key = api_key
         self.from_email = from_email
-        self.to_email = to_email
+        # 归一化为 list：支持单地址或多地址（逗号分隔的环境变量已在外部拆分）
+        self.to_emails = [to_email] if isinstance(to_email, str) else list(to_email)
         self.timeout = timeout
 
     async def send(self, subject: str, html: str) -> None:
@@ -31,7 +38,7 @@ class ResendMailer(Mailer):
         url = "https://api.resend.com/emails"
         payload = {
             "from": self.from_email,
-            "to": [self.to_email],
+            "to": self.to_emails,
             "subject": subject,
             "html": html,
         }
@@ -54,7 +61,7 @@ class ResendMailer(Mailer):
                         )
                         raise RuntimeError(f"Resend API {resp.status_code} client error: {body}")
                     resp.raise_for_status()
-                    logger.info(f"Email sent to {self.to_email}: {resp.json()}")
+                    logger.info(f"Email sent to {self.to_emails}: {resp.json()}")
                     return
                 except RuntimeError:
                     # 4xx 抛出的 RuntimeError，不重试，直接向上抛
