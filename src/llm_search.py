@@ -56,8 +56,7 @@ JSON_HINT = "请只返回合法 JSON 数组，不要包含任何 markdown 标记
 
 class LLMSearchProvider(ABC):
     @abstractmethod
-    async def search(self, today: str) -> list[Hackathon]:
-        ...
+    async def search(self, today: str) -> list[Hackathon]: ...
 
 
 class GLMSearchProvider(LLMSearchProvider):
@@ -106,7 +105,13 @@ class GLMSearchProvider(LLMSearchProvider):
         return []  # 不可达，保险兜底
 
     async def _call_api(self, messages: list[dict]) -> str:
-        """调用 LLM API。HTTP/网络错误重试 2 次（指数退避 1s, 4s），仍失败抛 RuntimeError。"""
+        """调用 LLM API。
+
+        重试策略（匹配 spec 第 9 节）：
+        - 4xx 客户端错误：立即抛 RuntimeError，不重试（重试也必失败）。记录响应体便于定位。
+        - 5xx 服务端错误 / 超时 / 网络错误：重试 2 次（指数退避 1s, 4s），仍失败抛 RuntimeError。
+        - 响应结构异常（choices 缺失等）：抛 ValueError，触发上层 search() 的 JSON hint 重试。
+        """
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -130,20 +135,44 @@ class GLMSearchProvider(LLMSearchProvider):
             ],
         }
 
-        last_http_exc: Exception | None = None
-        for attempt in range(3):
-            try:
-                async with httpx.AsyncClient(timeout=self.timeout) as client:
+        last_retryable_exc: Exception | None = None
+        # 复用单一 AsyncClient，避免每次重试重建 TLS 连接
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            for attempt in range(3):
+                try:
                     resp = await client.post(url, json=payload, headers=headers)
+                    # 4xx：客户端错误，重试必失败，立即抛出并记录响应体供排查
+                    if 400 <= resp.status_code < 500:
+                        body = resp.text
+                        logger.error(
+                            f"GLM API client error {resp.status_code}, not retrying: {body}"
+                        )
+                        raise RuntimeError(f"GLM API {resp.status_code} client error: {body}")
+                    # 5xx 与其他非 2xx：走重试
                     resp.raise_for_status()
                     data = resp.json()
-                    return data["choices"][0]["message"]["content"]
-            except Exception as e:
-                last_http_exc = e
-                logger.warning(f"GLM search attempt {attempt + 1} failed: {e}")
-                if attempt < 2:
-                    await asyncio.sleep(4 ** attempt)
-        raise RuntimeError(f"GLM search failed after retries: {last_http_exc}")
+                    # 响应结构异常：转 ValueError，让上层 search() 走 JSON hint 重试路径
+                    try:
+                        content = data["choices"][0]["message"]["content"]
+                    except (KeyError, IndexError, TypeError) as e:
+                        raise ValueError(
+                            f"LLM response structure invalid: {e}, body: {data}"
+                        ) from e
+                    if not isinstance(content, str) or not content.strip():
+                        raise ValueError(f"LLM returned empty content, body: {data}")
+                    return content
+                except RuntimeError:
+                    # 4xx 抛出的 RuntimeError，不重试，直接向上抛
+                    raise
+                except ValueError:
+                    # 结构异常，交给上层 search() 处理（JSON hint 重试）
+                    raise
+                except (httpx.HTTPStatusError, httpx.TimeoutException, httpx.TransportError) as e:
+                    last_retryable_exc = e
+                    logger.warning(f"GLM search attempt {attempt + 1} failed: {e}")
+                    if attempt < 2:
+                        await asyncio.sleep(4**attempt)
+        raise RuntimeError(f"GLM search failed after retries: {last_retryable_exc}")
 
     @staticmethod
     def _parse(content: str) -> list[Hackathon]:

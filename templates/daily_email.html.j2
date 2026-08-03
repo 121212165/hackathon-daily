@@ -52,6 +52,8 @@
 </tr>
 
 <!-- ==================== EMPTY STATE ==================== -->
+{# 注：main.py 在 hackathons 为空时直接 return 0，不会调用 render_email。
+   此分支保留作防御性渲染（防止未来 main 流程变更后模板仍能安全降级）。 #}
 {% if not hackathons %}
 <tr>
 <td style="padding: 48px 24px; text-align: center;">
