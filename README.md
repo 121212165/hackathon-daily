@@ -4,7 +4,7 @@
 
 ## 工作流程
 
-1. GitHub Actions 定时触发（cron `0 0 * * *` = UTC 00:00 / 北京 08:00）
+1. GitHub Actions 定时触发（cron `15 22 * * *` = UTC 22:15，抵消 GitHub Actions 调度延迟后约北京 08:00 送达）
 2. 调用 LLM 联网搜索 API（默认 GLM-4-search）获取当前可报名的线上黑客松
 3. 渲染 HTML 邮件
 4. 通过 Resend API 发送到收件箱

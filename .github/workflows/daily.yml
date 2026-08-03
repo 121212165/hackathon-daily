@@ -2,7 +2,7 @@ name: Hackathon Daily
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # UTC 00:00 = 北京 08:00
+    - cron: '15 22 * * *'  # 提前至 UTC 22:15 抵消 Actions 调度延迟（实测 ~1h45m），约北京 08:00 送达
   workflow_dispatch:
 
 jobs:
