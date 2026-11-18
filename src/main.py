@@ -40,11 +40,23 @@ async def main() -> int:
     logger.info(f"Starting hackathon daily for {today}")
 
     # 前置检查所有必填环境变量，避免 LLM 调用后才发现邮件配置缺失而浪费计费
-    llm_api_key = _require_env("LLM_API_KEY")
+    provider_api_key = next(
+        (
+            os.environ[name]
+            for name in ("LLM_API_KEY", "GLM_API_KEY", "OPENAI_API_KEY")
+            if os.environ.get(name)
+        ),
+        None,
+    )
+    if not provider_api_key:
+        logger.error(
+            "At least one provider API key is required "
+            "(LLM_API_KEY, GLM_API_KEY, or OPENAI_API_KEY)"
+        )
     resend_api_key = _require_env("RESEND_API_KEY")
     mail_from = _require_env("MAIL_FROM")
     mail_to = _require_env("MAIL_TO")
-    if not all([llm_api_key, resend_api_key, mail_from, mail_to]):
+    if not all([provider_api_key, resend_api_key, mail_from, mail_to]):
         return 1
 
     recipients = _parse_recipients(mail_to)

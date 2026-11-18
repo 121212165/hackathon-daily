@@ -148,7 +148,7 @@ async def test_main_send_exception_no_mark(monkeypatch):
 
 @pytest.mark.parametrize(
     "missing_env",
-    ["LLM_API_KEY", "RESEND_API_KEY", "MAIL_FROM", "MAIL_TO"],
+    ["RESEND_API_KEY", "MAIL_FROM", "MAIL_TO"],
 )
 async def test_main_missing_env_returns_1(monkeypatch, missing_env):
     """任一必填 env 缺失 → return 1，不调用 LLM。"""
@@ -159,6 +159,20 @@ async def test_main_missing_env_returns_1(monkeypatch, missing_env):
 
     assert rc == 1
     mock_build.assert_not_called()
+
+
+async def test_main_openai_key_alone_passes_preflight(monkeypatch):
+    """仅配置 OPENAI_API_KEY 也可通过预检并执行搜索。"""
+    _set_env(monkeypatch, LLM_API_KEY="", OPENAI_API_KEY="openai-key")
+    monkeypatch.delenv("GLM_API_KEY", raising=False)
+    mock_chain = MagicMock()
+    mock_chain.search = AsyncMock(return_value=[])
+
+    with patch("src.main.build_provider_chain", return_value=mock_chain):
+        rc = await main()
+
+    assert rc == 0
+    mock_chain.search.assert_awaited_once()
 
 
 async def test_main_multiple_recipients(monkeypatch):

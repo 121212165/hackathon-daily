@@ -124,7 +124,7 @@ ALTER TABLE hackathons ADD COLUMN url_hash TEXT;   -- 新增可空列
 | # | 文件 | 改动 | 验收 |
 | --- | --- | --- | --- |
 | 0.1 | `.github/workflows/daily.yml` | 顶层加 `concurrency: { group: hackathon-daily, cancel-in-progress: false }` | YAML 合法；两次手动触发不会并行 |
-| 0.2 | `src/main.py` | 预检从「`LLM_API_KEY` 硬必填」改为「**至少一个 provider key**」：`(LLM_API_KEY or GLM_API_KEY or OPENAI_API_KEY)`；`RESEND/MAIL_FROM/MAIL_TO` 仍硬必填 | 只配 `OPENAI_API_KEY` 的配置能通过预检（当前会被拒，是 bug） |
+| 0.2 | `src/main.py` | ✅ 已完成：预检支持 `LLM_API_KEY` / `GLM_API_KEY` / `OPENAI_API_KEY` 任一；`RESEND/MAIL_FROM/MAIL_TO` 仍硬必填 | 已增加仅 `OPENAI_API_KEY` 配置通过预检的测试 |
 | 0.3 | `src/store.py` | 实施 §2.2：`url_hash` 列 + `normalize_url()` + 查询兼容 + 写入规则 | 老记录仍判为已推送；同 URL 不同标题不重推 |
 | 0.4 | `tests/test_store.py` | 补用例（见下） | `pytest -v` 全绿 |
 
