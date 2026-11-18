@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import os
 import re
 
 import httpx
@@ -54,34 +55,106 @@ SYSTEM_PROMPT = """你是一名国内线上黑客松信息聚合助手。
 
 JSON_HINT = "请只返回合法 JSON 数组，不要包含任何 markdown 标记或解释性文字。"
 
+_FENCE_RE = re.compile(r"^\s*```(?:json)?\s*(.*?)\s*```\s*$", re.DOTALL)
 
-def parse_hackathons(content: str) -> list[Hackathon]:
-    """解析 LLM 返回的内容为 Hackathon 列表。
 
-    支持 markdown 代码块围栏剥离。解析失败抛 ValueError。
+def extract_json(content: str) -> list[dict]:
+    """从 LLM 文本中抽取合法的 Hackathon 字典列表。
+
+    复用 parse_hackathons 的围栏剥离 + json.loads + 逐条 from_dict 容错：
+    - 整段不是 JSON 数组 → ValueError（由调用方决定是否 hint 重试）
+    - 单条缺 registration_url / 类型错误 → 记 warning 并跳过，不影响其它条目
+
+    返回原始字典（已通过 Hackathon.from_dict 校验），供 LLM / Serper / Tavily 共用。
     """
-    text = content.strip()
-    fence = re.match(r"^\s*```(?:json)?\s*(.*?)\s*```\s*$", text, re.DOTALL)
+    text = (content or "").strip()
+    fence = _FENCE_RE.match(text)
     if fence:
         text = fence.group(1).strip()
 
     try:
         arr = json.loads(text)
     except json.JSONDecodeError as e:
-        raise ValueError(f"LLM returned invalid JSON: {e}")
+        raise ValueError(f"LLM returned invalid JSON: {e}") from e
 
     if not isinstance(arr, list):
         raise ValueError("LLM returned non-array")
 
-    result: list[Hackathon] = []
+    result: list[dict] = []
     for item in arr:
         if not isinstance(item, dict):
             continue
         try:
-            result.append(Hackathon.from_dict(item))
+            Hackathon.from_dict(item)
         except ValueError as e:
             logger.warning(f"Skip invalid hackathon entry: {e}")
+            continue
+        result.append(item)
     return result
+
+
+def parse_hackathons(content: str) -> list[Hackathon]:
+    """解析 LLM 返回的内容为 Hackathon 列表（解析失败抛 ValueError）。"""
+    return [Hackathon.from_dict(item) for item in extract_json(content)]
+
+
+STRUCTURE_PROMPT = """你是信息抽取助手。下面是一组网页搜索结果（标题/链接/摘要/正文）。
+请把其中仍可报名的中国大陆线上黑客松抽取为 JSON 数组，每项字段：
+name, organizer, type_tag, summary, registration_deadline, start_date, end_date,
+location, registration_url（必填，取搜索结果中的真实链接）, detail_url。
+只保留确有报名链接的条目；无对应信息填 "待定" 或 ""。
+只返回 JSON 数组，不包含 markdown 代码块或解释文字，输出语言为中文。"""
+
+
+def _structure_llm_config() -> tuple[str, dict[str, str], str] | None:
+    """返回廉价结构化调用的 (url, headers, model)；无可用 LLM key → None。"""
+    api_key = os.environ.get("LLM_API_KEY") or os.environ.get("GLM_API_KEY")
+    if api_key:
+        base = os.environ.get("LLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4/")
+        return (
+            f"{base.rstrip('/')}/chat/completions",
+            {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            "glm-4-flash",  # 结构化是廉价任务，固定用 flash 档
+        )
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if api_key:
+        base = os.environ.get("OPENAI_BASE_URL", "https://api.deepseek.com/v1")
+        return (
+            f"{base.rstrip('/')}/chat/completions",
+            {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            "deepseek-chat",
+        )
+    return None
+
+
+async def structure_search_results(items: list[dict], today: str) -> list[dict]:
+    """SERP 结果 → 一次便宜 LLM 调用 → extract_json 结构化。
+
+    失败（无 LLM key / 调用失败 / JSON 解析失败）只 warning 并返回空列表，
+    不阻塞其它搜索源。
+    """
+    if not items:
+        return []
+    config = _structure_llm_config()
+    if config is None:
+        logger.warning("No LLM key available for SERP structuring, skipping")
+        return []
+    url, headers, model = config
+    evidence = json.dumps(items[:20], ensure_ascii=False)[:12000]
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": STRUCTURE_PROMPT},
+            {"role": "user", "content": f"今天是 {today}。搜索结果如下：\n{evidence}"},
+        ],
+        "stream": False,
+    }
+    try:
+        content = await call_chat_api(url, headers, payload, timeout=30.0, max_retries=1)
+        return extract_json(content)
+    except (ValueError, RuntimeError) as e:
+        logger.warning(f"SERP structuring failed: {e}")
+        return []
 
 
 async def call_chat_api(
