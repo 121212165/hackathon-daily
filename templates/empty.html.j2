@@ -6,55 +6,51 @@
 <meta name="color-scheme" content="light dark">
 <title>黑客松日报 - {{ today }}（今日无新增）</title>
 <style type="text/css">
-  <!-- 内联样式为兜底；@media 用 !important 覆盖内联样式兼容明暗模式。 -->
+  /* 2026 ACID-BRUTALIST SYSTEM — 内联兜底 + @media !important 覆盖兼容明暗模式。 */
   @media (prefers-color-scheme: dark) {
-    body, .outer { background-color: #0f0f10 !important; }
-    .card, .stats-bar { background-color: #111112 !important; border-color: #303136 !important; }
-    .brand-title, .card-title, .info-val, .section-head { color: #f4f9ff !important; }
-    .brand-meta, .info-label, .footer, .empty-msg { color: #a0a4b0 !important; }
-    .btn-ghost { color: #f4f9ff !important; border-color: #303136 !important; }
+    body, .outer { background-color: #0B0F1E !important; }
+    .card, .stats-bar { background-color: #141A2E !important; border-color: #0B0F1E !important; }
+    .brand-title, .empty-title, .card-title { color: #F0EFEB !important; }
+    .brand-meta, .empty-msg, .footer, .meta-label { color: #A0A8C8 !important; }
+    .btn-ghost { color: #D4FF00 !important; border-color: #D4FF00 !important; }
   }
   @media (prefers-color-scheme: light) {
-    body, .outer { background-color: #f4f5f7 !important; }
-    .card, .stats-bar { background-color: #ffffff !important; border-color: #e2e4e9 !important; }
-    .brand-title, .card-title, .info-val, .section-head { color: #1a1c20 !important; }
-    .brand-meta, .info-label, .footer, .empty-msg { color: #5c6270 !important; }
-    .btn-ghost { color: #1a1c20 !important; border-color: #d8dae0 !important; }
+    body, .outer { background-color: #F0EFEB !important; }
+    .card, .stats-bar { background-color: #FFFFFF !important; border-color: #0B0F1E !important; }
+    .brand-title, .empty-title, .card-title { color: #0B0F1E !important; }
+    .brand-meta, .empty-msg, .footer, .meta-label { color: #4A4A58 !important; }
+    .btn-ghost { color: #0B0F1E !important; border-color: #0B0F1E !important; }
   }
 </style>
 </head>
-<body class="outer" bgcolor="#0f0f10" style="margin: 0; padding: 0; background-color: #0f0f10; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 14px; color: #f4f9ff; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%;">
+<body class="outer" bgcolor="#0B0F1E" style="margin: 0; padding: 0; background-color: #0B0F1E; background-image: repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(212,255,0,0.05) 40px), repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(212,255,0,0.05) 40px); font-family: 'Space Grotesk', 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; color: #F0EFEB; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%;">
 
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #0f0f10;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #0B0F1E;">
 <tr>
-<td align="center" style="padding: 32px 16px;">
+<td align="center" style="padding: 24px 12px;">
 
 <!-- Main content area: 600px max, centered -->
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; width: 100%; margin: 0 auto;">
 
 <!-- ==================== HEADER ==================== -->
 <tr>
-<td style="padding: 0 0 20px 0;">
+<td style="padding: 0 0 16px 0;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
   <tr>
-    <td width="48" valign="top" style="padding-right: 16px;">
+    <td width="52" valign="top" style="padding-right: 16px;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0">
       <tr>
-        <td width="48" height="48" bgcolor="#ea343a" align="center" valign="middle" style="background-color: #ea343a; border-radius: 10px; width: 48px; height: 48px; text-align: center; vertical-align: middle; font-size: 20px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">
-          HD
-        </td>
+        <td width="52" height="52" bgcolor="#D4FF00" align="center" valign="middle" style="background-color: #D4FF00; border: 2px solid #0B0F1E; box-shadow: 4px 4px 0 #FF4D00; width: 52px; height: 52px; text-align: center; vertical-align: middle; font-family: 'Unbounded', 'Arial Black', Impact, sans-serif; font-size: 18px; font-weight: 900; color: #0B0F1E; letter-spacing: -1px;">HD</td>
       </tr>
       </table>
     </td>
     <td valign="top">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0">
       <tr>
-        <td class="brand-title" style="padding: 0 0 6px 0; font-size: 24px; font-weight: 700; color: #f4f9ff; line-height: 1.2;">黑客松日报</td>
+        <td class="brand-title" style="padding: 0 0 4px 0; font-family: 'Unbounded', 'Arial Black', Impact, sans-serif; font-size: 26px; font-weight: 900; color: #F0EFEB; line-height: 1; letter-spacing: -1px; text-transform: uppercase; text-shadow: 2px 0 #FF4D00, -2px 0 #00FF41;">黑客松日报</td>
       </tr>
       <tr>
-        <td class="brand-meta" style="padding: 0; font-size: 12px; color: #a0a4b0; font-family: 'SF Mono', 'Roboto Mono', Consolas, monospace; letter-spacing: 0.3px;">
-          {{ today }} &middot; 今日无新增
-        </td>
+        <td class="brand-meta" style="padding: 0; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; color: #A0A8C8; letter-spacing: 0.12em; text-transform: uppercase;">{{ today }} &middot; 今日无新增</td>
       </tr>
       </table>
     </td>
@@ -63,18 +59,27 @@
 </td>
 </tr>
 
-<!-- ==================== EMPTY STATE ==================== -->
+<!-- TICKER -->
 <tr>
-<td style="padding: 0 0 28px 0;">
-  <table class="stats-bar" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#16171a" style="background-color: #16171a; border: 1px solid #303136; border-radius: 12px; border-collapse: separate;">
+<td style="padding: 0 0 18px 0; border-top: 2px solid #D4FF00; border-bottom: 2px solid #D4FF00;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
   <tr>
-    <td align="center" style="padding: 28px 20px;">
-      <div style="font-size: 28px; line-height: 1;">🍃</div>
-      <div class="card-title" style="padding-top: 12px; font-size: 18px; font-weight: 700; color: #f4f9ff;">今日无新增</div>
-      <div class="empty-msg" style="padding-top: 6px; font-size: 13px; color: #a0a4b0; line-height: 1.6;">
-        今天没有发现新的可报名黑客松，明天见。
-      </div>
-      <div class="brand-meta" style="padding-top: 12px; font-size: 12px; color: #a0a4b0;">本周累计 {{ weekly_count }} 场</div>
+    <td style="padding: 7px 0; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 10px; color: #D4FF00; letter-spacing: 0.28em; text-transform: uppercase; white-space: nowrap; overflow: hidden;">HACKATHON // DAILY // 2026 // NO NEW ENTRIES // KEEP WATCHING //</td>
+  </tr>
+  </table>
+</td>
+</tr>
+
+<!-- ==================== EMPTY STATE: contradiction pairing (serif + mono) ==================== -->
+<tr>
+<td style="padding: 0 0 26px 0;">
+  <table class="stats-bar" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#380B44" style="background-color: #380B44; border: 2px solid #D4FF00; border-collapse: separate;">
+  <tr>
+    <td align="center" style="padding: 30px 20px;">
+      <div style="font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; color: #D4FF00; letter-spacing: 0.3em; text-transform: uppercase;">STATUS / 00</div>
+      <div class="empty-title" style="padding-top: 12px; font-family: 'Fraunces', Georgia, 'Times New Roman', serif; font-size: 34px; font-style: italic; font-weight: 700; color: #F0EFEB; line-height: 1; letter-spacing: -1px;">今日无新增</div>
+      <div class="empty-msg" style="padding-top: 12px; font-size: 13px; color: #A0A8C8; line-height: 1.65;">今天没有发现新的可报名黑客松，明天见。</div>
+      <div class="meta-label" style="padding-top: 16px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; color: #A0A8C8; letter-spacing: 0.12em; text-transform: uppercase;">本周累计 {{ weekly_count }} 场</div>
     </td>
   </tr>
   </table>
@@ -84,10 +89,10 @@
 <!-- ==================== UPCOMING TOP3 ==================== -->
 {% if top %}
 <tr>
-<td style="padding: 0 0 14px 0;">
+<td style="padding: 0 0 16px 0;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
   <tr>
-    <td class="section-head" style="padding: 0; font-size: 16px; font-weight: 700; color: #f4f9ff;">⏳ 即将截止 TOP3</td>
+    <td bgcolor="#D4FF00" style="padding: 9px 12px; background-color: #D4FF00; border: 2px solid #0B0F1E; font-family: 'Unbounded', 'Arial Black', Impact, sans-serif; font-size: 15px; font-weight: 900; color: #0B0F1E; letter-spacing: -0.3px; text-transform: uppercase;">⏳ 即将截止 TOP3</td>
   </tr>
   </table>
 </td>
@@ -97,28 +102,28 @@
 {% set u = h.urgency() %}
 {% set dl = h.days_left %}
 <tr>
-<td style="padding: 0 0 14px 0;">
-  <table class="card" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#111112" style="background-color: #111112; border: 1px solid #303136; border-radius: 14px; border-collapse: separate;">
+<td style="padding: 0 0 18px 0;">
+  <table class="card" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#141A2E" style="background-color: #141A2E; border: 2px solid #0B0F1E; box-shadow: 5px 5px 0 #0B0F1E; border-collapse: separate;">
   <tr>
-  <td style="padding: 16px 20px;">
+  <td style="padding: 16px 18px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
     <tr>
-      <td class="card-title" style="padding: 0; font-size: 15px; font-weight: 700; color: #f4f9ff; line-height: 1.4;">{{ h.name }}</td>
-      <td align="right" style="padding: 0 0 0 12px; white-space: nowrap;">
+      <td class="card-title" style="padding: 0; font-family: 'Unbounded', 'Arial Black', Impact, sans-serif; font-size: 16px; font-weight: 900; color: #F0EFEB; line-height: 1.15; letter-spacing: -0.4px;">{{ h.name }}</td>
+      <td align="right" style="padding: 0 0 0 10px; white-space: nowrap;">
         {% if u == 'hot' %}
-        <span class="badge badge-hot" style="display: inline-block; padding: 3px 8px; background-color: #ea343a; color: #ffffff; border-radius: 6px; font-size: 12px; font-weight: 700;">{% if dl < 0 %}已截止{% elif dl == 0 %}今天截止{% else %}剩 {{ dl }} 天{% endif %}</span>
+        <span style="display: inline-block; padding: 4px 8px; background-color: #FF4D00; border: 2px solid #0B0F1E; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #FFFFFF; text-transform: uppercase;">{% if dl < 0 %}已截止{% elif dl == 0 %}今天截止{% else %}剩 {{ dl }} 天{% endif %}</span>
         {% elif u == 'soon' %}
-        <span class="badge badge-soon" style="display: inline-block; padding: 3px 8px; background-color: #f5a524; color: #1a1c20; border-radius: 6px; font-size: 12px; font-weight: 700;">剩 {{ dl }} 天</span>
+        <span style="display: inline-block; padding: 4px 8px; background-color: #D4FF00; border: 2px solid #0B0F1E; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #0B0F1E; text-transform: uppercase;">剩 {{ dl }} 天</span>
         {% elif u == 'later' %}
-        <span class="badge badge-later" style="display: inline-block; padding: 3px 8px; background-color: #34c759; color: #ffffff; border-radius: 6px; font-size: 12px; font-weight: 700;">{{ dl }} 天后</span>
+        <span style="display: inline-block; padding: 4px 8px; background-color: #00FF41; border: 2px solid #0B0F1E; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #0B0F1E; text-transform: uppercase;">{{ dl }} 天后</span>
         {% else %}
-        <span class="badge badge-unknown" style="display: inline-block; padding: 3px 8px; background-color: #6b7280; color: #ffffff; border-radius: 6px; font-size: 12px; font-weight: 700;">待定</span>
+        <span style="display: inline-block; padding: 4px 8px; background-color: #F0EFEB; border: 2px solid #0B0F1E; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #0B0F1E; text-transform: uppercase;">待定</span>
         {% endif %}
       </td>
     </tr>
     </table>
-    <div class="info-label" style="padding-top: 8px; font-size: 12px; color: #a0a4b0;">报名截止 {{ h.registration_deadline }}</div>
-    <a href="{{ h.registration_url | safe_url }}" target="_blank" style="display: inline-block; margin-top: 10px; padding: 7px 18px; background-color: #ea343a; color: #ffffff; text-decoration: none; border-radius: 7px; font-size: 13px; font-weight: 600;">立即报名</a>
+    <div class="meta-label" style="padding-top: 10px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 10px; color: #A0A8C8; letter-spacing: 0.1em; text-transform: uppercase;">报名截止 {{ h.registration_deadline }}</div>
+    <a href="{{ h.registration_url | safe_url }}" target="_blank" style="display: inline-block; margin-top: 12px; padding: 8px 18px; background-color: #D4FF00; border: 2px solid #0B0F1E; box-shadow: 3px 3px 0 #0B0F1E; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 12px; font-weight: 700; color: #0B0F1E; text-decoration: none; text-transform: uppercase; letter-spacing: 0.08em;">立即报名 &rarr;</a>
   </td>
   </tr>
   </table>
@@ -129,12 +134,12 @@
 
 <!-- ==================== FOOTER ==================== -->
 <tr>
-<td style="padding: 12px 0 0 0;">
+<td style="padding: 18px 0 0 0;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-  <tr><td style="padding: 0; border-top: 1px solid #303136; font-size: 0; line-height: 0;">&nbsp;</td></tr>
+  <tr><td style="padding: 0; border-top: 2px solid #D4FF00; font-size: 0; line-height: 0;">&nbsp;</td></tr>
   <tr>
-    <td class="footer" style="padding: 20px 0 0 0; font-size: 12px; color: #a0a4b0; text-align: center; line-height: 1.6;">
-      本邮件由 Hackathon Daily 自动推送 &middot; Powered by AI Search
+    <td class="footer" style="padding: 16px 0 0 0; text-align: center; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 10px; color: #A0A8C8; text-transform: uppercase; letter-spacing: 0.14em; line-height: 1.6;">
+      HACKATHON DAILY &middot; AUTO-DISPATCHED BY AI SEARCH &middot; NO. {{ today }}
     </td>
   </tr>
   </table>
