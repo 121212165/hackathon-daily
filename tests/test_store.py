@@ -1,18 +1,26 @@
 """store.py 去重持久化层测试。
 
 覆盖：
-- init_db 幂等
+- init_db 幂等（含 url_hash 列迁移）
 - get_unseen 纯查询不写入
-- mark_pushed 写入 + UPSERT
+- mark_pushed 写入 + 两步 upsert（url_hash 优先，title_hash 兜底）
 - 标题归一化去重（空白/大小写/标点）
+- URL 归一化去重（utm / 大小写 / 尾斜杠）
+- 老库（无 url_hash 列）读写兼容，老条目仍去重
+- 非法/空 registration_url → 回退标题路径
 - 发送失败不 mark → 下次仍 unseen
 """
 
+import sqlite3
+
 from src.models import Hackathon
-from src.store import get_unseen, init_db, mark_pushed, title_hash
+from src.store import get_unseen, init_db, mark_pushed, normalize_url, title_hash, url_hash
 
 
-def _make_hackathon(name="测试黑客松", url="https://example.com"):
+def _make_hackathon(name="测试黑客松", url=None):
+    """构造测试条目。url 为 None 时按标题生成独立报名链接（URL 才是身份）。"""
+    if url is None:
+        url = f"https://example.com/register/{name}"
     return Hackathon(
         name=name,
         organizer="主办方",
@@ -120,3 +128,132 @@ async def test_title_hash_consistency():
     h2 = _make_hackathon("ai黑客松")
     h3 = _make_hackathon(" AI  黑客松 ")
     assert title_hash(h1) == title_hash(h2) == title_hash(h3)
+
+
+# ---- URL 身份（批次 0 / §2.2）----
+
+
+def test_normalize_url_rules():
+    """normalize_url：strip / 小写 scheme+host / 去 tracking / 去尾斜杠 / 非法 → None。"""
+    assert normalize_url(None) is None
+    assert normalize_url(123) is None
+    assert normalize_url("") is None
+    assert normalize_url("   ") is None
+    assert normalize_url("javascript:alert(1)") is None  # 非 http(s) scheme
+    assert normalize_url("example.com/x") is None  # 无 scheme
+    assert normalize_url("HTTPS://Example.com/a/") == "https://example.com/a"
+    assert normalize_url("https://example.com/") == "https://example.com"
+    assert (
+        normalize_url("https://example.com/a?utm_source=x&b=1&ref=y") == "https://example.com/a?b=1"
+    )
+    assert normalize_url("https://example.com/a?b=1#frag") == "https://example.com/a?b=1"
+
+
+async def test_same_url_different_title_pushed_once(tmp_path):
+    """同一 URL 不同标题 → 只推一次（URL 是稳定身份）。"""
+    db = tmp_path / "test.db"
+    mark_pushed([_make_hackathon("赛事原名", url="https://race.example.com/reg")], db)
+
+    renamed = _make_hackathon("赛事改了新名字", url="https://race.example.com/reg")
+    assert get_unseen([renamed], db) == []
+
+
+async def test_url_variants_deduped(tmp_path):
+    """URL 带 utm_* / 大小写 / 尾斜杠 / 首尾空白差异 → 判为同一条。"""
+    db = tmp_path / "test.db"
+    original = _make_hackathon("原始赛事", url="https://Example.com/reg?utm_source=tw&name=demo")
+    mark_pushed([original], db)
+
+    variants = [
+        "https://example.com/reg?name=demo",
+        "HTTPS://example.com/reg/?name=demo&utm_campaign=mail",
+        "  https://example.com/reg?name=demo&ref=home  ",
+        "https://example.com/reg?name=demo",
+    ]
+    for i, v in enumerate(variants):
+        item = _make_hackathon(f"标题也各不相同{i}", url=v)
+        assert get_unseen([item], db) == [], f"URL 变体应判为同一条: {v!r}"
+
+
+async def test_invalid_url_falls_back_to_title(tmp_path):
+    """registration_url 为空/非法 scheme → url_hash 为 None，回退 title_hash 路径。"""
+    db = tmp_path / "test.db"
+    broken = _make_hackathon("非法链接赛事", url="javascript:alert(1)")
+    assert url_hash(broken) is None
+    mark_pushed([broken], db)
+
+    for bad in ["", "   ", "not-a-url", "ftp://example.com/x"]:
+        item = _make_hackathon("非法链接赛事", url=bad)
+        assert url_hash(item) is None
+        assert get_unseen([item], db) == [], f"应回退标题去重: {bad!r}"
+
+    # 标题不同 → 仍是新条目
+    other = _make_hackathon("另一个赛事", url="")
+    assert get_unseen([other], db) == [other]
+
+
+async def test_legacy_db_without_url_hash_compat(tmp_path):
+    """老库（建表时无 url_hash 列）：读写不炸、老条目仍去重、不爆发重推。"""
+    db = tmp_path / "legacy.db"
+    legacy_title = "老黑客松"
+    legacy_schema = """
+        CREATE TABLE hackathons (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            url TEXT,
+            source TEXT NOT NULL DEFAULT 'llm',
+            title_hash TEXT UNIQUE NOT NULL,
+            first_seen_at TEXT NOT NULL,
+            last_pushed_at TEXT
+        )
+    """
+    with sqlite3.connect(db) as conn:
+        conn.execute(legacy_schema)
+        conn.execute(
+            "INSERT INTO hackathons (title, url, title_hash, first_seen_at) VALUES (?,?,?,?)",
+            (
+                legacy_title,
+                "https://legacy.example.com/reg",
+                title_hash(_make_hackathon(legacy_title)),
+                "2026-01-01T00:00:00+08:00",
+            ),
+        )
+        conn.commit()
+
+    # 老条目（同标题、URL 不同/未知）→ 仍判为已推送
+    assert get_unseen([_make_hackathon(legacy_title)], db) == []
+    # 新条目正常
+    fresh = _make_hackathon("新黑客松")
+    assert get_unseen([fresh], db) == [fresh]
+
+    # 迁移后可写：新行 + 老行回填 url_hash
+    mark_pushed([fresh, _make_hackathon(legacy_title)], db)
+    with sqlite3.connect(db) as conn:
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(hackathons)")}
+        assert "url_hash" in cols
+        count = conn.execute("SELECT COUNT(*) FROM hackathons").fetchone()[0]
+        backfilled = conn.execute(
+            "SELECT url_hash FROM hackathons WHERE title_hash = ?",
+            (title_hash(_make_hackathon(legacy_title)),),
+        ).fetchone()
+    assert count == 2, "同标题老行不应被重复插入"
+    assert backfilled[0] is not None, "老行应回填 url_hash"
+
+    # 迁移后再次查询仍稳定去重
+    assert get_unseen([_make_hackathon(legacy_title), fresh], db) == []
+
+
+async def test_get_unseen_does_not_touch_rows(tmp_path):
+    """get_unseen 纯查询：不新增行、不回填 url_hash（发送失败重试语义不被破坏）。"""
+    db = tmp_path / "test.db"
+    mark_pushed([_make_hackathon("已有赛事")], db)
+    query = "SELECT id, title, url, url_hash, last_pushed_at FROM hackathons ORDER BY id"
+    with sqlite3.connect(db) as conn:
+        before = conn.execute(query).fetchall()
+
+    get_unseen([_make_hackathon("未见赛事"), _make_hackathon("已有赛事")], db)
+
+    with sqlite3.connect(db) as conn:
+        after = conn.execute(query).fetchall()
+    assert after == before
+    assert len(after) == 1

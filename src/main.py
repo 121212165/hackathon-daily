@@ -34,17 +34,31 @@ def _parse_recipients(mail_to: str) -> list[str]:
     return [e.strip() for e in mail_to.split(",") if e.strip()]
 
 
+# 任一 LLM provider key 即可开跑：各 provider 由 from_env() 自行认领自己的 key
+PROVIDER_KEY_ENVS = ("LLM_API_KEY", "GLM_API_KEY", "OPENAI_API_KEY")
+
+
+def _provider_key_present() -> bool:
+    """至少配置一个 provider key 即通过预检（只配 OPENAI_API_KEY 也应可用）。"""
+    return any(os.environ.get(name) for name in PROVIDER_KEY_ENVS)
+
+
 async def main() -> int:
     load_dotenv()
     today = beijing_today()
     logger.info(f"Starting hackathon daily for {today}")
 
-    # 前置检查所有必填环境变量，避免 LLM 调用后才发现邮件配置缺失而浪费计费
-    llm_api_key = _require_env("LLM_API_KEY")
+    # 前置检查环境变量，避免搜索调用后才发现邮件配置缺失而浪费计费
+    # Provider key：LLM/GLM/OPENAI 任一即可（各自 provider 认领）；邮件三项仍硬必填
+    if not _provider_key_present():
+        logger.error(
+            f"No LLM provider key found: set at least one of {' / '.join(PROVIDER_KEY_ENVS)}"
+        )
+        return 1
     resend_api_key = _require_env("RESEND_API_KEY")
     mail_from = _require_env("MAIL_FROM")
     mail_to = _require_env("MAIL_TO")
-    if not all([llm_api_key, resend_api_key, mail_from, mail_to]):
+    if not all([resend_api_key, mail_from, mail_to]):
         return 1
 
     recipients = _parse_recipients(mail_to)

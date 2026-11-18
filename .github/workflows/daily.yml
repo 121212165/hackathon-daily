@@ -5,6 +5,11 @@ on:
     - cron: '15 22 * * *'  # 提前至 UTC 22:15 抵消 Actions 调度延迟（实测 ~1h45m），约北京 08:00 送达
   workflow_dispatch:
 
+# 串行化运行：手动触发与 cron 不并行（排队而非取消，避免回写冲突）
+concurrency:
+  group: hackathon-daily
+  cancel-in-progress: false
+
 permissions:
   contents: write
 

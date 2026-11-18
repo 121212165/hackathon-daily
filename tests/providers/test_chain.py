@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.models import Hackathon
-from src.providers.chain import ProviderChain
+from src.providers.chain import ProviderChain, build_provider_chain
 
 
 def _make_hackathon(name="测试"):
@@ -90,3 +90,27 @@ async def test_chain_source_tagging():
     result = await chain.search("2026-08-03")
 
     assert all(h.source == "glm" for h in result)
+
+
+def _clear_provider_env(monkeypatch):
+    """清空所有 provider 相关环境变量，避免宿主环境残留影响断言。"""
+    for name in ("LLM_API_KEY", "GLM_API_KEY", "OPENAI_API_KEY", "LLM_PROVIDERS"):
+        monkeypatch.delenv(name, raising=False)
+
+
+async def test_build_chain_openai_key_only(monkeypatch):
+    """只配 OPENAI_API_KEY、LLM_PROVIDERS 用默认 "glm" → 兜底仍能建链（0.2 验收）。"""
+    _clear_provider_env(monkeypatch)
+    monkeypatch.setenv("OPENAI_API_KEY", "oa-key")
+
+    chain = build_provider_chain()
+
+    assert [p.name for p in chain.providers] == ["openai"]
+
+
+async def test_build_chain_no_key_raises(monkeypatch):
+    """一个 key 都没配 → 仍抛 ValueError（保持现状语义）。"""
+    _clear_provider_env(monkeypatch)
+
+    with pytest.raises(ValueError, match="No LLM provider available"):
+        build_provider_chain()

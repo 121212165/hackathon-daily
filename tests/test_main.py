@@ -7,7 +7,8 @@
 - chain 构建失败 → return 1
 - 搜索异常 → return 1
 - 发送异常 → return 1（不调 mark_pushed）
-- 环境变量缺失 → return 1
+- 环境变量缺失 → return 1（provider key 至少一个；邮件三项硬必填）
+- 只配 OPENAI_API_KEY 也能过预检（批次 0 / 0.2）
 - 多收件人解析
 """
 
@@ -19,9 +20,14 @@ from src.main import main
 
 
 def _set_env(monkeypatch, **overrides):
-    """设置完整必填环境变量，可用 overrides 覆盖单个变量。"""
+    """设置完整必填环境变量，可用 overrides 覆盖单个变量。
+
+    默认清空全部 provider key（LLM/GLM/OPENAI），避免宿主环境残留 key 影响断言。
+    """
     defaults = {
         "LLM_API_KEY": "llm-key",
+        "GLM_API_KEY": "",
+        "OPENAI_API_KEY": "",
         "RESEND_API_KEY": "re-key",
         "MAIL_FROM": "from@test.com",
         "MAIL_TO": "to@test.com",
@@ -151,8 +157,57 @@ async def test_main_send_exception_no_mark(monkeypatch):
     ["LLM_API_KEY", "RESEND_API_KEY", "MAIL_FROM", "MAIL_TO"],
 )
 async def test_main_missing_env_returns_1(monkeypatch, missing_env):
-    """任一必填 env 缺失 → return 1，不调用 LLM。"""
+    """任一必填 env 缺失 → return 1，不调用 LLM。
+
+    注：LLM_API_KEY 缺失时 GLM_API_KEY / OPENAI_API_KEY 同样为空（_set_env 默认），
+    即"一个 provider key 都没有"才判失败。
+    """
     _set_env(monkeypatch, **{missing_env: ""})
+
+    with patch("src.main.build_provider_chain") as mock_build:
+        rc = await main()
+
+    assert rc == 1
+    mock_build.assert_not_called()
+
+
+async def test_main_openai_key_only_passes_preflight(monkeypatch):
+    """只配 OPENAI_API_KEY（LLM/GLM 为空）→ 预检通过，流程照常（0.2 验收）。"""
+    _set_env(monkeypatch, LLM_API_KEY="", GLM_API_KEY="", OPENAI_API_KEY="oa-key")
+
+    mock_chain = MagicMock()
+    mock_chain.search = AsyncMock(return_value=[])
+
+    with patch("src.main.build_provider_chain", return_value=mock_chain) as mock_build:
+        with patch("src.main.ResendMailer") as MockMailer:
+            MockMailer.return_value.send = AsyncMock()
+            rc = await main()
+
+    assert rc == 0
+    mock_build.assert_called_once()
+
+
+async def test_main_no_provider_key_returns_1(monkeypatch):
+    """LLM/GLM/OPENAI 三个 key 全缺 → return 1，不构建链。"""
+    _set_env(monkeypatch, LLM_API_KEY="", GLM_API_KEY="", OPENAI_API_KEY="")
+
+    with patch("src.main.build_provider_chain") as mock_build:
+        rc = await main()
+
+    assert rc == 1
+    mock_build.assert_not_called()
+
+
+async def test_main_mail_config_still_hard_required(monkeypatch):
+    """provider key 齐全但邮件配置缺失 → 仍 return 1（邮件三项未被放宽）。"""
+    _set_env(
+        monkeypatch,
+        LLM_API_KEY="",
+        GLM_API_KEY="",
+        OPENAI_API_KEY="oa-key",
+        RESEND_API_KEY="",
+        MAIL_FROM="",
+    )
 
     with patch("src.main.build_provider_chain") as mock_build:
         rc = await main()

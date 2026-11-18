@@ -76,10 +76,12 @@ def build_provider_chain() -> ProviderChain:
             providers.append(provider)
 
     if not providers:
-        # 兜底：尝试 GLM（main.py 已检查 LLM_API_KEY，此处一般不会到）
-        glm = GLMProvider.from_env()
-        if glm is not None:
-            providers.append(glm)
+        # 兜底：配置名单未产出任何 provider（如 LLM_PROVIDERS 默认 "glm" 但只配了
+        # OPENAI_API_KEY）→ 依次尝试注册表中所有已配 key 的 provider
+        for cls in registry.values():
+            provider = cls.from_env()
+            if provider is not None:
+                providers.append(provider)
 
     if not providers:
         raise ValueError("No LLM provider available: set LLM_API_KEY (GLM) and/or OPENAI_API_KEY")

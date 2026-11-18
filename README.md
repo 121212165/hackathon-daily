@@ -54,11 +54,12 @@ python -m src.main
 
 | Key | 说明 | 示例 |
 |---|---|---|
-| `LLM_API_KEY` | LLM Provider API Key | (你的 key) |
+| `LLM_API_KEY` | LLM Provider API Key（与 `GLM_API_KEY` 二选一；三选一即可开跑） | (你的 key) |
+| `GLM_API_KEY` | 智谱 API Key（与 `LLM_API_KEY` 等价，可选） | (你的 key) |
 | `LLM_BASE_URL` | LLM API 端点（可选） | `https://open.bigmodel.cn/api/paas/v4/` |
 | `LLM_MODEL` | 模型名（可选） | `glm-4-search` |
 | `LLM_PROVIDERS` | Provider 列表（可选，逗号分隔） | `glm` 或 `glm,openai` |
-| `OPENAI_API_KEY` | OpenAI 兼容 API Key（可选 fallback） | (你的 key) |
+| `OPENAI_API_KEY` | OpenAI 兼容 API Key（可选；也可单独作为唯一 provider key） | (你的 key) |
 | `OPENAI_BASE_URL` | OpenAI 兼容端点（可选） | `https://api.deepseek.com/v1` |
 | `OPENAI_MODEL` | OpenAI 兼容模型名（可选） | `deepseek-chat` |
 | `RESEND_API_KEY` | Resend API Key | `re_xxx` |
