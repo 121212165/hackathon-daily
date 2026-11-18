@@ -21,6 +21,17 @@ _GROUPS = (
     ("later", "📅 后续"),
 )
 
+# 两套视觉：bold = 2026 酸性粗野（默认，向后兼容）；calm = 收敛版（仅留酸性色 + 等宽标签）
+_STYLES = ("bold", "calm")
+
+
+def _template_name(kind: str, style: str) -> str:
+    """按风格选模板；style 非法时直接报错，避免悄悄回退到错误版本。"""
+    if style not in _STYLES:
+        raise ValueError(f"unknown email style: {style!r} (expected one of {_STYLES})")
+    suffix = "" if style == "bold" else "_calm"
+    return f"{kind}{suffix}.html.j2"
+
 
 def safe_url(url: str) -> str:
     """规范化 URL，确保 href 可被邮件客户端正确识别为绝对链接。
@@ -133,11 +144,16 @@ def _render_text(groups: list[dict], stats: dict[str, int], subject: str) -> str
     return "\n".join(lines).rstrip() + "\n"
 
 
-def render_email(hackathons: list[Hackathon], today: str) -> tuple[str, str, str]:
-    """渲染日报，返回 (subject, html, text)。subject 格式保持不变以兼容既有测试。"""
+def render_email(
+    hackathons: list[Hackathon], today: str, style: str = "bold"
+) -> tuple[str, str, str]:
+    """渲染日报，返回 (subject, html, text)。subject 格式保持不变以兼容既有测试。
+
+    style="bold"（默认）= 酸性粗野；style="calm" = 收敛版（酸性色 + 等宽标签）。
+    """
     groups, stats = _prepare(hackathons)
     subject = f"黑客松日报 - {today}（{len(hackathons)} 场可报名）"
-    html = _env().get_template("daily_email.html.j2").render(
+    html = _env().get_template(_template_name("daily_email", style)).render(
         hackathons=hackathons,
         today=today,
         count=len(hackathons),
@@ -148,15 +164,16 @@ def render_email(hackathons: list[Hackathon], today: str) -> tuple[str, str, str
 
 
 def render_empty_email(
-    top_upcoming: list[Hackathon], weekly_count: int, today: str
+    top_upcoming: list[Hackathon], weekly_count: int, today: str, style: str = "bold"
 ) -> tuple[str, str, str]:
     """渲染「今日无新增」邮件，返回 (subject, html, text)。
 
     top_upcoming：从当日搜索结果里按 days_left 升序取出的即将截止 TOP3（只读）。
     weekly_count：来自 store.count_pushed_last_7_days()（只读查询）。
+    style 同 render_email：bold（默认）/ calm。
     """
     subject = f"黑客松日报 - {today}（今日无新增）"
-    html = _env().get_template("empty.html.j2").render(
+    html = _env().get_template(_template_name("empty", style)).render(
         top=top_upcoming,
         weekly_count=weekly_count,
         today=today,

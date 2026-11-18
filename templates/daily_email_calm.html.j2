@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>黑客松日报 - {{ today }}</title>
+<style type="text/css">
+  /* 收敛版：只保留酸性色作为强调 + 等宽标签；去掉故障投影、背景网格、硬阴影与超大展示字。
+     内联样式为兜底，@media 用 !important 覆盖兼容明暗模式；无外部 CSS / 无弹性布局。 */
+  @media (prefers-color-scheme: dark) {
+    body, .outer { background-color: #0B0F1E !important; }
+    .card, .stats-bar { background-color: #141A2E !important; border-color: #2A3358 !important; }
+    .brand-title, .card-title, .info-val, .stat-num, .group-head { color: #F0EFEB !important; }
+    .brand-meta, .card-org, .info-label, .footer, .group-count, .stat-label { color: #A0A8C8 !important; }
+    .card-summary { color: #D8DCEC !important; }
+    .btn-ghost { color: #F0EFEB !important; border-color: #5A627A !important; }
+  }
+  @media (prefers-color-scheme: light) {
+    body, .outer { background-color: #F0EFEB !important; }
+    .card, .stats-bar { background-color: #FFFFFF !important; border-color: #E2E4E0 !important; }
+    .brand-title, .card-title, .info-val, .stat-num, .group-head { color: #16181D !important; }
+    .brand-meta, .card-org, .info-label, .footer, .group-count, .stat-label { color: #5C6270 !important; }
+    .card-summary { color: #3F4452 !important; }
+    .btn-ghost { color: #16181D !important; border-color: #E2E4E0 !important; }
+  }
+</style>
+</head>
+<body class="outer" bgcolor="#F0EFEB" style="margin: 0; padding: 0; background-color: #F0EFEB; font-family: 'Space Grotesk', 'Trebuchet MS', 'Segoe UI', sans-serif; font-size: 14px; color: #16181D; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%;">
+
+<!-- Outer wrapper -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F0EFEB;">
+<tr>
+<td align="center" style="padding: 24px 12px;">
+
+<!-- Main content area: 600px max, centered -->
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; width: 100%; margin: 0 auto;">
+
+<!-- ==================== HEADER ==================== -->
+<tr>
+<td style="padding: 0 0 14px 0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td width="44" valign="top" style="padding-right: 14px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td width="44" height="44" bgcolor="#D4FF00" align="center" valign="middle" style="background-color: #D4FF00; border: 1px solid #16181D; border-radius: 6px; width: 44px; height: 44px; text-align: center; vertical-align: middle; font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif; font-size: 15px; font-weight: 700; color: #16181D;">HD</td>
+      </tr>
+      </table>
+    </td>
+    <td valign="top">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td class="brand-title" style="padding: 0 0 5px 0; font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif; font-size: 22px; font-weight: 700; color: #16181D; line-height: 1.15;">黑客松日报</td>
+      </tr>
+      <tr>
+        <td class="brand-meta" style="padding: 0; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; color: #5C6270; letter-spacing: 0.08em; text-transform: uppercase;">{{ today }} &middot; {{ count }} 场可报名</td>
+      </tr>
+      </table>
+    </td>
+  </tr>
+  </table>
+</td>
+</tr>
+
+<!-- Single acid rule (replaces ticker) -->
+<tr>
+<td style="padding: 0 0 22px 0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr><td style="height: 3px; font-size: 0; line-height: 0; background-color: #D4FF00;">&nbsp;</td></tr>
+  </table>
+</td>
+</tr>
+
+<!-- ==================== STATS BAR ==================== -->
+<tr>
+<td style="padding: 0 0 24px 0;">
+  <table class="stats-bar" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="background-color: #FFFFFF; border: 1px solid #E2E4E0; border-top: 3px solid #D4FF00; border-radius: 8px; border-collapse: separate;">
+  <tr>
+    <td align="center" width="33.33%" style="padding: 16px 8px; border-right: 1px solid #E2E4E0;">
+      <div class="stat-num" style="font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif; font-size: 24px; font-weight: 700; color: #16181D; line-height: 1;">{{ stats.new }}</div>
+      <div class="stat-label" style="padding-top: 6px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 10px; color: #5C6270; letter-spacing: 0.1em; text-transform: uppercase;">今日新增</div>
+    </td>
+    <td align="center" width="33.33%" style="padding: 16px 8px; border-right: 1px solid #E2E4E0;">
+      <div class="stat-num" style="font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif; font-size: 24px; font-weight: 700; color: #16181D; line-height: 1;">{{ stats.hot }}</div>
+      <div class="stat-label" style="padding-top: 6px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 10px; color: #5C6270; letter-spacing: 0.1em; text-transform: uppercase;">即将截止</div>
+    </td>
+    <td align="center" width="33.33%" style="padding: 16px 8px;">
+      <div class="stat-num" style="font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif; font-size: 24px; font-weight: 700; color: #16181D; line-height: 1;">{{ stats.week }}</div>
+      <div class="stat-label" style="padding-top: 6px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 10px; color: #5C6270; letter-spacing: 0.1em; text-transform: uppercase;">本周累计</div>
+    </td>
+  </tr>
+  </table>
+</td>
+</tr>
+
+<!-- ==================== EMPTY STATE (defensive) ==================== -->
+{% if not hackathons %}
+<tr>
+<td style="padding: 40px 20px; text-align: center; border: 1px solid #E2E4E0; border-radius: 8px; color: #5C6270;">
+  今日暂无可报名的线上黑客松。
+</td>
+</tr>
+{% endif %}
+
+<!-- ==================== GROUPED HACKATHON CARDS ==================== -->
+{% for group in groups %}
+{% if group.entries %}
+<!-- Group section head: mono label + acid accent bar -->
+<tr>
+<td style="padding: 0 0 12px 0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td class="group-head" style="padding: 8px 12px; border-left: 4px solid #D4FF00; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 12px; font-weight: 700; color: #16181D; letter-spacing: 0.06em; text-transform: uppercase;">{{ group.label }}</td>
+    <td class="group-count" align="right" style="padding: 8px 12px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; color: #5C6270;">{{ group.entries|length }} 场</td>
+  </tr>
+  </table>
+</td>
+</tr>
+
+{% for h in group.entries %}
+{% set u = h.urgency() %}
+{% set dl = h.days_left %}
+<tr>
+<td style="padding: 0 0 14px 0;">
+  <table class="card" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="background-color: #FFFFFF; border: 1px solid #E2E4E0; border-radius: 8px; border-collapse: separate;">
+
+  <tr><td style="height: 16px; font-size: 0; line-height: 0;">&nbsp;</td></tr>
+
+  <!-- Badge + type chip -->
+  <tr>
+  <td style="padding: 0 20px 0 20px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td style="padding: 0;">
+        {% if u == 'hot' %}
+        <span class="badge badge-hot" style="display: inline-block; padding: 3px 8px; background-color: #FFE3D6; border-radius: 4px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #A63600;">{% if dl < 0 %}🔥 已截止{% elif dl == 0 %}🔥 今天截止{% else %}🔥 剩 {{ dl }} 天{% endif %}</span>
+        {% elif u == 'soon' %}
+        <span class="badge badge-soon" style="display: inline-block; padding: 3px 8px; background-color: #EEFFA8; border-radius: 4px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #3D4A00;">⏳ 剩 {{ dl }} 天</span>
+        {% elif u == 'later' %}
+        <span class="badge badge-later" style="display: inline-block; padding: 3px 8px; background-color: #E3F7E8; border-radius: 4px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #1E6B33;">📅 {{ dl }} 天后</span>
+        {% else %}
+        <span class="badge badge-unknown" style="display: inline-block; padding: 3px 8px; background-color: #EEEFE9; border-radius: 4px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #555B66;">⌛ 待定</span>
+        {% endif %}
+      </td>
+      <td align="right" style="padding: 0 0 0 10px;">
+        <span class="chip" style="display: inline-block; padding: 3px 8px; background-color: #EEEFE9; border-radius: 4px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 10px; color: #5C6270; text-transform: uppercase; letter-spacing: 0.06em;">{{ h.type_tag }}</span>
+      </td>
+    </tr>
+    </table>
+  </td>
+  </tr>
+
+  <!-- Name -->
+  <tr>
+  <td class="card-title" style="padding: 12px 20px 0 20px; font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif; font-size: 18px; font-weight: 700; color: #16181D; line-height: 1.3;">{{ h.name }}</td>
+  </tr>
+
+  <!-- Organizer -->
+  <tr>
+  <td class="card-org" style="padding: 5px 20px 0 20px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; color: #5C6270; text-transform: uppercase; letter-spacing: 0.06em;">{{ h.organizer }}</td>
+  </tr>
+
+  <!-- One-line summary -->
+  {% if h.summary %}
+  <tr>
+  <td class="card-summary" style="padding: 10px 20px 0 20px; font-size: 14px; color: #3F4452; line-height: 1.65;">{{ h.summary }}</td>
+  </tr>
+  {% endif %}
+
+  <!-- Info table -->
+  <tr>
+  <td style="padding: 14px 20px 0 20px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse;">
+    <tr>
+      <td class="info-label" style="padding: 4px 0; width: 78px; vertical-align: top; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 10px; color: #5C6270; text-transform: uppercase; letter-spacing: 0.08em;">报名截止</td>
+      <td class="info-val" style="padding: 4px 0 4px 12px; vertical-align: top; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 12px; color: #16181D;">{{ h.registration_deadline }}</td>
+    </tr>
+    <tr>
+      <td class="info-label" style="padding: 4px 0; vertical-align: top; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 10px; color: #5C6270; text-transform: uppercase; letter-spacing: 0.08em;">比赛时间</td>
+      <td class="info-val" style="padding: 4px 0 4px 12px; vertical-align: top; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 12px; color: #16181D;">{{ h.start_date }} ~ {{ h.end_date }}</td>
+    </tr>
+    <tr>
+      <td class="info-label" style="padding: 4px 0; vertical-align: top; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 10px; color: #5C6270; text-transform: uppercase; letter-spacing: 0.08em;">地点</td>
+      <td class="info-val" style="padding: 4px 0 4px 12px; vertical-align: top; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 12px; color: #16181D;">{{ h.location }}</td>
+    </tr>
+    </table>
+  </td>
+  </tr>
+
+  <!-- Buttons -->
+  <tr>
+  <td style="padding: 16px 20px 20px 20px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td style="padding: 0;">
+        <a href="{{ h.registration_url | safe_url }}" target="_blank" style="display: inline-block; padding: 9px 20px; background-color: #D4FF00; border: 1px solid #D4FF00; border-radius: 6px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 12px; font-weight: 700; color: #16181D; text-decoration: none; letter-spacing: 0.04em;">立即报名 &rarr;</a>
+      </td>
+      {% if h.detail_url %}
+      <td width="10" style="font-size: 0; line-height: 0; width: 10px;">&nbsp;</td>
+      <td style="padding: 0;">
+        <a class="btn-ghost" href="{{ h.detail_url | safe_url }}" target="_blank" style="display: inline-block; padding: 8px 18px; background-color: transparent; border: 1px solid #E2E4E0; border-radius: 6px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 12px; color: #5C6270; text-decoration: none; letter-spacing: 0.04em;">详情 &rarr;</a>
+      </td>
+      {% endif %}
+    </tr>
+    </table>
+  </td>
+  </tr>
+
+  </table>
+  <!-- Card end -->
+</td>
+</tr>
+{% endfor %}
+{% endif %}
+{% endfor %}
+
+<!-- ==================== FOOTER ==================== -->
+<tr>
+<td style="padding: 16px 0 0 0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr><td style="padding: 0; border-top: 1px solid #E2E4E0; font-size: 0; line-height: 0;">&nbsp;</td></tr>
+  <tr>
+    <td class="footer" style="padding: 14px 0 0 0; text-align: center; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 10px; color: #5C6270; letter-spacing: 0.06em; line-height: 1.6;">
+      本邮件由 Hackathon Daily 自动推送 &middot; {{ today }}
+    </td>
+  </tr>
+  </table>
+</td>
+</tr>
+
+</table>
+<!-- End main content -->
+
+</td>
+</tr>
+</table>
+<!-- End outer wrapper -->
+
+</body>
+</html>

@@ -3,6 +3,8 @@ import re
 from datetime import timedelta
 from pathlib import Path
 
+import pytest
+
 from src.email_renderer import render_email, render_empty_email, safe_url
 from src.models import Hackathon, beijing_date
 
@@ -222,3 +224,50 @@ def test_render_empty_email():
     assert "TOP1" in html and "TOP2" in html
     assert "本周累计 9 场" in text
     assert "- [截止 " in text and "TOP1" in text
+
+
+# ---------------- A/B：收敛版（style="calm"）----------------
+
+
+def test_render_email_calm_variant():
+    """收敛版：保留酸性色 + 等宽标签，去掉故障投影 / 网格 / 硬阴影，但链接仍安全。"""
+    items = [_h("热赛事", 1), _h("晚赛事", 30)]
+    subject, html, text = render_email(items, "2026-11-18", style="calm")
+    assert subject == "黑客松日报 - 2026-11-18（2 场可报名）"
+    assert "#D4FF00" in html
+    assert "IBM Plex Mono" in html
+    assert "text-shadow" not in html
+    assert "repeating-linear-gradient" not in html
+    assert "box-shadow" not in html
+    assert 'href="https://example.com/热赛事"' in html
+    assert "热赛事" in text
+
+
+def test_render_email_bold_is_default():
+    """不传 style 时仍是原来的酸性粗野版（向后兼容）。"""
+    _, html, _ = render_email([_h("A", 1)], "2026-11-18")
+    assert "text-shadow" in html
+    assert "repeating-linear-gradient" in html
+    assert "#D4FF00" in html
+
+
+def test_render_email_invalid_style():
+    with pytest.raises(ValueError, match="unknown email style"):
+        render_email([], "2026-11-18", style="loud")
+
+
+def test_render_empty_email_calm_variant():
+    """空日收敛版：同样保留酸性色 + 等宽标签，内容齐全。"""
+    subject, html, text = render_empty_email(
+        [_h("TOP1", 1), _h("TOP2", 2)], 9, "2026-11-18", style="calm"
+    )
+    assert subject == "黑客松日报 - 2026-11-18（今日无新增）"
+    assert "#D4FF00" in html
+    assert "IBM Plex Mono" in html
+    assert "text-shadow" not in html
+    assert "repeating-linear-gradient" not in html
+    assert "今日无新增" in html
+    assert "本周累计 9 场" in html
+    assert "即将截止 TOP3" in html
+    assert "TOP1" in html and "TOP2" in html
+    assert "TOP1" in text
