@@ -6,10 +6,11 @@ from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
 
-from .email_renderer import render_email
+from .email_renderer import render_email, render_empty_email
 from .mailer import ResendMailer
+from .models import Hackathon
 from .providers import build_provider_chain
-from .store import get_unseen, mark_pushed
+from .store import count_pushed_last_7_days, get_unseen, mark_pushed
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -32,6 +33,15 @@ def _require_env(name: str) -> str | None:
 def _parse_recipients(mail_to: str) -> list[str]:
     """解析收件人：支持逗号分隔的多地址。"""
     return [e.strip() for e in mail_to.split(",") if e.strip()]
+
+
+def _upcoming_top3(hackathons: list[Hackathon]) -> list[Hackathon]:
+    """从当日搜索结果里取即将截止（≤3 天）的 TOP3，按 days_left 升序（只读）。"""
+    candidates = [
+        h for h in hackathons if isinstance(getattr(h, "days_left", None), int)
+    ]
+    candidates.sort(key=lambda h: h.days_left)
+    return [h for h in candidates if h.days_left <= 3][:3]
 
 
 # 任一 LLM provider key 即可开跑：各 provider 由 from_env() 自行认领自己的 key
@@ -77,29 +87,44 @@ async def main() -> int:
         return 1
 
     logger.info(f"Found {len(hackathons)} hackathons")
+    # 搜索彻底失败（异常）已在上面 return 1；返回空列表视为"今天没搜到"，
+    # 故障不伪装成日报 —— 这两种路径都不发邮件。
     if not hackathons:
-        logger.info("No hackathons today, skip sending")
+        logger.info("No hackathons found today, skip sending")
         return 0
 
     # 2. 去重：仅推送未见过的
     unseen = get_unseen(hackathons)
-    if not unseen:
-        logger.info("No new hackathons (all already pushed), skip sending")
-        return 0
 
-    logger.info(f"{len(unseen)} new hackathons to send")
-
-    # 3. 渲染
-    subject, html = render_email(unseen, today)
-
-    # 4. 发送
     mailer = ResendMailer(
         api_key=resend_api_key,
         from_email=mail_from,
         to_email=recipients,
     )
+
+    # 3a. 空日也发：搜索有结果但全部已推送 → 发「今日无新增」，且不标记（本来就是空集）
+    if not unseen:
+        logger.info("No new hackathons, sending empty-day digest")
+        subject, html, text = render_empty_email(
+            _upcoming_top3(hackathons),
+            count_pushed_last_7_days(),
+            today,
+        )
+        try:
+            await mailer.send(subject, html, text)
+        except Exception as e:
+            logger.error(f"Send empty-day email failed: {e}")
+            return 1
+        logger.info("Done (empty-day digest sent)")
+        return 0
+
+    # 3b. 非空日报
+    logger.info(f"{len(unseen)} new hackathons to send")
+    subject, html, text = render_email(unseen, today)
+
+    # 4. 发送
     try:
-        await mailer.send(subject, html)
+        await mailer.send(subject, html, text)
     except Exception as e:
         logger.error(f"Send email failed: {e}")
         return 1

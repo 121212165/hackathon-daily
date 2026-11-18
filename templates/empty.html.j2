@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>黑客松日报 - {{ today }}（今日无新增）</title>
+<style type="text/css">
+  <!-- 内联样式为兜底；@media 用 !important 覆盖内联样式兼容明暗模式。 -->
+  @media (prefers-color-scheme: dark) {
+    body, .outer { background-color: #0f0f10 !important; }
+    .card, .stats-bar { background-color: #111112 !important; border-color: #303136 !important; }
+    .brand-title, .card-title, .info-val, .section-head { color: #f4f9ff !important; }
+    .brand-meta, .info-label, .footer, .empty-msg { color: #a0a4b0 !important; }
+    .btn-ghost { color: #f4f9ff !important; border-color: #303136 !important; }
+  }
+  @media (prefers-color-scheme: light) {
+    body, .outer { background-color: #f4f5f7 !important; }
+    .card, .stats-bar { background-color: #ffffff !important; border-color: #e2e4e9 !important; }
+    .brand-title, .card-title, .info-val, .section-head { color: #1a1c20 !important; }
+    .brand-meta, .info-label, .footer, .empty-msg { color: #5c6270 !important; }
+    .btn-ghost { color: #1a1c20 !important; border-color: #d8dae0 !important; }
+  }
+</style>
+</head>
+<body class="outer" bgcolor="#0f0f10" style="margin: 0; padding: 0; background-color: #0f0f10; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; font-size: 14px; color: #f4f9ff; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%;">
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #0f0f10;">
+<tr>
+<td align="center" style="padding: 32px 16px;">
+
+<!-- Main content area: 600px max, centered -->
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; width: 100%; margin: 0 auto;">
+
+<!-- ==================== HEADER ==================== -->
+<tr>
+<td style="padding: 0 0 20px 0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td width="48" valign="top" style="padding-right: 16px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td width="48" height="48" bgcolor="#ea343a" align="center" valign="middle" style="background-color: #ea343a; border-radius: 10px; width: 48px; height: 48px; text-align: center; vertical-align: middle; font-size: 20px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">
+          HD
+        </td>
+      </tr>
+      </table>
+    </td>
+    <td valign="top">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td class="brand-title" style="padding: 0 0 6px 0; font-size: 24px; font-weight: 700; color: #f4f9ff; line-height: 1.2;">黑客松日报</td>
+      </tr>
+      <tr>
+        <td class="brand-meta" style="padding: 0; font-size: 12px; color: #a0a4b0; font-family: 'SF Mono', 'Roboto Mono', Consolas, monospace; letter-spacing: 0.3px;">
+          {{ today }} &middot; 今日无新增
+        </td>
+      </tr>
+      </table>
+    </td>
+  </tr>
+  </table>
+</td>
+</tr>
+
+<!-- ==================== EMPTY STATE ==================== -->
+<tr>
+<td style="padding: 0 0 28px 0;">
+  <table class="stats-bar" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#16171a" style="background-color: #16171a; border: 1px solid #303136; border-radius: 12px; border-collapse: separate;">
+  <tr>
+    <td align="center" style="padding: 28px 20px;">
+      <div style="font-size: 28px; line-height: 1;">🍃</div>
+      <div class="card-title" style="padding-top: 12px; font-size: 18px; font-weight: 700; color: #f4f9ff;">今日无新增</div>
+      <div class="empty-msg" style="padding-top: 6px; font-size: 13px; color: #a0a4b0; line-height: 1.6;">
+        今天没有发现新的可报名黑客松，明天见。
+      </div>
+      <div class="brand-meta" style="padding-top: 12px; font-size: 12px; color: #a0a4b0;">本周累计 {{ weekly_count }} 场</div>
+    </td>
+  </tr>
+  </table>
+</td>
+</tr>
+
+<!-- ==================== UPCOMING TOP3 ==================== -->
+{% if top %}
+<tr>
+<td style="padding: 0 0 14px 0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td class="section-head" style="padding: 0; font-size: 16px; font-weight: 700; color: #f4f9ff;">⏳ 即将截止 TOP3</td>
+  </tr>
+  </table>
+</td>
+</tr>
+
+{% for h in top %}
+{% set u = h.urgency() %}
+{% set dl = h.days_left %}
+<tr>
+<td style="padding: 0 0 14px 0;">
+  <table class="card" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#111112" style="background-color: #111112; border: 1px solid #303136; border-radius: 14px; border-collapse: separate;">
+  <tr>
+  <td style="padding: 16px 20px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td class="card-title" style="padding: 0; font-size: 15px; font-weight: 700; color: #f4f9ff; line-height: 1.4;">{{ h.name }}</td>
+      <td align="right" style="padding: 0 0 0 12px; white-space: nowrap;">
+        {% if u == 'hot' %}
+        <span class="badge badge-hot" style="display: inline-block; padding: 3px 8px; background-color: #ea343a; color: #ffffff; border-radius: 6px; font-size: 12px; font-weight: 700;">{% if dl < 0 %}已截止{% elif dl == 0 %}今天截止{% else %}剩 {{ dl }} 天{% endif %}</span>
+        {% elif u == 'soon' %}
+        <span class="badge badge-soon" style="display: inline-block; padding: 3px 8px; background-color: #f5a524; color: #1a1c20; border-radius: 6px; font-size: 12px; font-weight: 700;">剩 {{ dl }} 天</span>
+        {% elif u == 'later' %}
+        <span class="badge badge-later" style="display: inline-block; padding: 3px 8px; background-color: #34c759; color: #ffffff; border-radius: 6px; font-size: 12px; font-weight: 700;">{{ dl }} 天后</span>
+        {% else %}
+        <span class="badge badge-unknown" style="display: inline-block; padding: 3px 8px; background-color: #6b7280; color: #ffffff; border-radius: 6px; font-size: 12px; font-weight: 700;">待定</span>
+        {% endif %}
+      </td>
+    </tr>
+    </table>
+    <div class="info-label" style="padding-top: 8px; font-size: 12px; color: #a0a4b0;">报名截止 {{ h.registration_deadline }}</div>
+    <a href="{{ h.registration_url | safe_url }}" target="_blank" style="display: inline-block; margin-top: 10px; padding: 7px 18px; background-color: #ea343a; color: #ffffff; text-decoration: none; border-radius: 7px; font-size: 13px; font-weight: 600;">立即报名</a>
+  </td>
+  </tr>
+  </table>
+</td>
+</tr>
+{% endfor %}
+{% endif %}
+
+<!-- ==================== FOOTER ==================== -->
+<tr>
+<td style="padding: 12px 0 0 0;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr><td style="padding: 0; border-top: 1px solid #303136; font-size: 0; line-height: 0;">&nbsp;</td></tr>
+  <tr>
+    <td class="footer" style="padding: 20px 0 0 0; font-size: 12px; color: #a0a4b0; text-align: center; line-height: 1.6;">
+      本邮件由 Hackathon Daily 自动推送 &middot; Powered by AI Search
+    </td>
+  </tr>
+  </table>
+</td>
+</tr>
+
+</table>
+<!-- End main content -->
+
+</td>
+</tr>
+</table>
+<!-- End outer wrapper -->
+
+</body>
+</html>

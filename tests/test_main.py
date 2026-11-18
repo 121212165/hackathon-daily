@@ -3,7 +3,7 @@
 覆盖：
 - 正常流程：chain 搜索 + 去重 + 渲染 + 发送 + 标记 → return 0
 - 空结果：搜索返回 [] → skip → return 0
-- 全部已见：get_unseen 返回 [] → skip → return 0
+- 全部已见：get_unseen 返回 [] → 发空日邮件 + 不 mark → return 0（批次 5.6）
 - chain 构建失败 → return 1
 - 搜索异常 → return 1
 - 发送异常 → return 1（不调 mark_pushed）
@@ -57,7 +57,7 @@ async def test_main_happy_path(monkeypatch, tmp_path):
             with patch("src.main.mark_pushed") as mock_mark:
                 with patch("src.main.ResendMailer") as MockMailer:
                     MockMailer.return_value.send = AsyncMock(return_value=None)
-                    with patch("src.main.render_email", return_value=("主题", "<html/>")):
+                    with patch("src.main.render_email", return_value=("主题", "<html/>", "text")):
                         rc = await main()
 
     assert rc == 0
@@ -84,8 +84,8 @@ async def test_main_empty_search_result(monkeypatch):
     MockMailer.return_value.send.assert_not_awaited()
 
 
-async def test_main_all_already_seen(monkeypatch):
-    """全部已见过 → get_unseen 返回 [] → skip → return 0。"""
+async def test_main_all_already_seen_sends_empty_digest(monkeypatch):
+    """全部已见过 → 发「今日无新增」邮件 + 不调 mark_pushed（批次 5.6）。"""
     _set_env(monkeypatch)
     fake_hackathons = [_make_hackathon("A")]
 
@@ -94,13 +94,64 @@ async def test_main_all_already_seen(monkeypatch):
 
     with patch("src.main.build_provider_chain", return_value=mock_chain):
         with patch("src.main.get_unseen", return_value=[]):
-            with patch("src.main.mark_pushed") as mock_mark:
-                with patch("src.main.ResendMailer") as MockMailer:
-                    MockMailer.return_value.send = AsyncMock()
-                    rc = await main()
+            with patch(
+                "src.main.render_empty_email",
+                return_value=("空日主题", "<html/>", "text"),
+            ) as mock_empty:
+                with patch("src.main.count_pushed_last_7_days", return_value=7):
+                    with patch("src.main.mark_pushed") as mock_mark:
+                        with patch("src.main.ResendMailer") as MockMailer:
+                            MockMailer.return_value.send = AsyncMock()
+                            rc = await main()
 
     assert rc == 0
-    MockMailer.return_value.send.assert_not_awaited()
+    mock_empty.assert_called_once()
+    # 第二 / 三个参数是本周累计与 today
+    assert mock_empty.call_args.args[1] == 7
+    MockMailer.return_value.send.assert_awaited_once_with("空日主题", "<html/>", "text")
+    mock_mark.assert_not_called()
+
+
+async def test_main_empty_digest_top3_and_no_mark(monkeypatch):
+    """空日邮件：TOP3 来自当日搜索结果（只读），且不写库。"""
+    from datetime import timedelta
+
+    from src.models import Hackathon, beijing_date
+
+    def _h(name, days):
+        return Hackathon(
+            name=name,
+            organizer="主办方",
+            type_tag="AI",
+            summary="简介",
+            registration_deadline=(beijing_date() + timedelta(days=days)).isoformat(),
+            start_date="待定",
+            end_date="待定",
+            location="线上",
+            registration_url=f"https://example.com/{name}",
+            detail_url=None,
+        )
+
+    _set_env(monkeypatch)
+    found = [_h("晚", 30), _h("急", 1), _h("中", 6), _h("热", 2)]
+    mock_chain = MagicMock()
+    mock_chain.search = AsyncMock(return_value=found)
+
+    with patch("src.main.build_provider_chain", return_value=mock_chain):
+        with patch("src.main.get_unseen", return_value=[]):
+            with patch(
+                "src.main.render_empty_email",
+                return_value=("空日", "<html/>", "text"),
+            ) as mock_empty:
+                with patch("src.main.count_pushed_last_7_days", return_value=3):
+                    with patch("src.main.mark_pushed") as mock_mark:
+                        with patch("src.main.ResendMailer") as MockMailer:
+                            MockMailer.return_value.send = AsyncMock()
+                            rc = await main()
+
+    assert rc == 0
+    top3 = mock_empty.call_args.args[0]
+    assert [h.name for h in top3] == ["急", "热"]  # ≤3 天，按 days_left 升序；中=6 天不入选
     mock_mark.assert_not_called()
 
 
@@ -145,7 +196,7 @@ async def test_main_send_exception_no_mark(monkeypatch):
                     MockMailer.return_value.send = AsyncMock(
                         side_effect=RuntimeError("Resend down")
                     )
-                    with patch("src.main.render_email", return_value=("主题", "<html/>")):
+                    with patch("src.main.render_email", return_value=("主题", "<html/>", "text")):
                         rc = await main()
 
     assert rc == 1
@@ -229,7 +280,7 @@ async def test_main_multiple_recipients(monkeypatch):
             with patch("src.main.mark_pushed"):
                 with patch("src.main.ResendMailer") as MockMailer:
                     MockMailer.return_value.send = AsyncMock(return_value=None)
-                    with patch("src.main.render_email", return_value=("主题", "<html/>")):
+                    with patch("src.main.render_email", return_value=("主题", "<html/>", "text")):
                         rc = await main()
 
     assert rc == 0

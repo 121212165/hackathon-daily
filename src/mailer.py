@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class Mailer(ABC):
     @abstractmethod
-    async def send(self, subject: str, html: str) -> None: ...
+    async def send(self, subject: str, html: str, text: str | None = None) -> None: ...
 
 
 class ResendMailer(Mailer):
@@ -28,8 +28,8 @@ class ResendMailer(Mailer):
         self.to_emails = [to_email] if isinstance(to_email, str) else list(to_email)
         self.timeout = timeout
 
-    async def send(self, subject: str, html: str) -> None:
-        """发送邮件。
+    async def send(self, subject: str, html: str, text: str | None = None) -> None:
+        """发送邮件。有 text 时写入 Resend payload 的 "text" 字段（多部分替代正文）。
 
         重试策略：
         - 4xx 客户端错误（401 鉴权失败 / 422 邮件格式错误等）：立即抛 RuntimeError，不重试。
@@ -42,6 +42,8 @@ class ResendMailer(Mailer):
             "subject": subject,
             "html": html,
         }
+        if text:
+            payload["text"] = text
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",

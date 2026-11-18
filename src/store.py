@@ -197,3 +197,18 @@ def mark_pushed(hackathons: list[Hackathon], db_path: Path = DEFAULT_DB_PATH) ->
             )
         conn.commit()
     logger.info(f"Marked {len(hackathons)} hackathons as pushed")
+
+
+def count_pushed_last_7_days(db_path: Path = DEFAULT_DB_PATH) -> int:
+    """统计过去 7 天已推送赛事数（纯查询，供空日邮件「本周累计」用）。
+
+    复用既有 last_pushed_at（北京时间 ISO 字符串，格式一致可直接字典序比较）。
+    不写任何行，不影响 get_unseen 的纯查询语义。
+    """
+    init_db(db_path)
+    since = (datetime.now(_BEIJING_TZ) - timedelta(days=7)).isoformat()
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM hackathons WHERE last_pushed_at >= ?", (since,)
+        ).fetchone()
+    return int(row[0])

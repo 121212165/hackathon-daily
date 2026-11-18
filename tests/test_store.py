@@ -14,7 +14,15 @@
 import sqlite3
 
 from src.models import Hackathon
-from src.store import get_unseen, init_db, mark_pushed, normalize_url, title_hash, url_hash
+from src.store import (
+    count_pushed_last_7_days,
+    get_unseen,
+    init_db,
+    mark_pushed,
+    normalize_url,
+    title_hash,
+    url_hash,
+)
 
 
 def _make_hackathon(name="测试黑客松", url=None):
@@ -257,3 +265,49 @@ async def test_get_unseen_does_not_touch_rows(tmp_path):
         after = conn.execute(query).fetchall()
     assert after == before
     assert len(after) == 1
+
+
+# ---- 空日邮件「本周累计」只读查询（批次 5.6）----
+
+
+async def test_count_pushed_last_7_days(tmp_path):
+    """过去 7 天推送数：新推送计入，老记录不计入。"""
+    db = tmp_path / "test.db"
+    assert count_pushed_last_7_days(db) == 0
+
+    mark_pushed([_make_hackathon("A"), _make_hackathon("B")], db)
+    assert count_pushed_last_7_days(db) == 2
+
+    # 手动塞一条 30 天前的老记录 → 不计入
+    old = _make_hackathon("老赛事")
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            """
+            INSERT INTO hackathons (title, url, title_hash, first_seen_at, last_pushed_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                old.name,
+                old.registration_url,
+                title_hash(old),
+                "2026-01-01T00:00:00+08:00",
+                "2026-01-02T00:00:00+08:00",
+            ),
+        )
+        conn.commit()
+    assert count_pushed_last_7_days(db) == 2
+
+
+async def test_count_pushed_last_7_days_is_read_only(tmp_path):
+    """count_pushed_last_7_days 是纯查询，不改变任何行。"""
+    db = tmp_path / "test.db"
+    mark_pushed([_make_hackathon("A")], db)
+    query = "SELECT id, title, last_pushed_at FROM hackathons ORDER BY id"
+    with sqlite3.connect(db) as conn:
+        before = conn.execute(query).fetchall()
+
+    count_pushed_last_7_days(db)
+
+    with sqlite3.connect(db) as conn:
+        after = conn.execute(query).fetchall()
+    assert after == before

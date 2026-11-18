@@ -1,8 +1,10 @@
 import json
+import re
+from datetime import timedelta
 from pathlib import Path
 
-from src.email_renderer import render_email, safe_url
-from src.models import Hackathon
+from src.email_renderer import render_email, render_empty_email, safe_url
+from src.models import Hackathon, beijing_date
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -12,9 +14,26 @@ def _load_fixture() -> list[Hackathon]:
     return [Hackathon.from_dict(item) for item in data]
 
 
+def _h(name: str, days: int | None, type_tag: str = "AI") -> Hackathon:
+    """构造相对今天截止的赛事；days=None 表示无有效截止日期。"""
+    deadline = (beijing_date() + timedelta(days=days)).isoformat() if days is not None else "待定"
+    return Hackathon(
+        name=name,
+        organizer="主办方",
+        type_tag=type_tag,
+        summary="一句话简介",
+        registration_deadline=deadline,
+        start_date="待定",
+        end_date="待定",
+        location="线上",
+        registration_url=f"https://example.com/{name}",
+        detail_url=None,
+    )
+
+
 def test_render_email_contains_name_and_url():
     hackathons = _load_fixture()
-    subject, html = render_email(hackathons, "2026-07-24")
+    subject, html, _ = render_email(hackathons, "2026-07-24")
     assert "示例AI黑客松" in html
     assert "https://example.com/register" in html
     assert "极简赛事" in html
@@ -23,13 +42,13 @@ def test_render_email_contains_name_and_url():
 
 def test_render_email_subject_format():
     hackathons = _load_fixture()
-    subject, _ = render_email(hackathons, "2026-07-24")
+    subject, _, _ = render_email(hackathons, "2026-07-24")
     assert subject == "黑客松日报 - 2026-07-24（2 场可报名）"
 
 
 def test_render_email_displays_dates():
     hackathons = _load_fixture()
-    _, html = render_email(hackathons, "2026-07-24")
+    _, html, _ = render_email(hackathons, "2026-07-24")
     assert "2026-08-01" in html
     assert "2026-08-15" in html
     assert "2026-08-17" in html
@@ -37,7 +56,7 @@ def test_render_email_displays_dates():
 
 def test_render_email_handles_missing_fields():
     hackathons = [Hackathon.from_dict({"registration_url": "https://example.com/only"})]
-    _, html = render_email(hackathons, "2026-07-24")
+    _, html, _ = render_email(hackathons, "2026-07-24")
     # from_dict 默认填充：organizer/type_tag="未知"，deadline/start/end="待定"
     assert "待定" in html
     assert "未知" in html
@@ -46,14 +65,14 @@ def test_render_email_handles_missing_fields():
 
 def test_render_email_displays_today():
     hackathons = _load_fixture()
-    _, html = render_email(hackathons, "2026-07-24")
+    _, html, _ = render_email(hackathons, "2026-07-24")
     assert "2026-07-24" in html
 
 
 def test_render_email_buttons_have_absolute_href():
     """邮件按钮的 href 必须是 http/https 绝对链接，确保在邮件客户端可点击跳转。"""
     hackathons = _load_fixture()
-    _, html = render_email(hackathons, "2026-07-24")
+    _, html, _ = render_email(hackathons, "2026-07-24")
     # 立即报名按钮
     assert 'href="https://example.com/register"' in html
     # 详情按钮
@@ -129,3 +148,77 @@ def test_safe_url_strips_control_characters():
     assert (
         safe_url("https://example.com\tonclick=alert(1)") == "https://example.comonclick=alert(1)"
     )
+
+
+# ---------------- 批次 2：排序 / 分组 / 统计 / 文本版 ----------------
+
+
+def test_render_email_sorts_by_days_left_none_last():
+    """days_left 升序；无截止日期（None）排最后。"""
+    items = [_h("C_later", 30), _h("D_unknown", None), _h("B_soon", 7), _h("A_hot", 1)]
+    _, html, _ = render_email(items, "2026-11-18")
+    positions = {name: html.index(name) for name in ("A_hot", "B_soon", "C_later", "D_unknown")}
+    assert positions["A_hot"] < positions["B_soon"] < positions["C_later"] < positions["D_unknown"]
+
+
+def test_render_email_group_order_and_headers():
+    """分组小节按 hot → soon → later 顺序出现。"""
+    items = [_h("C_later", 30), _h("B_soon", 5), _h("A_hot", 2)]
+    _, html, _ = render_email(items, "2026-11-18")
+    hot = html.index("🔥 即将截止 (≤3 天)")
+    soon = html.index("📌 本周 (≤7 天)")
+    later = html.index("📅 后续")
+    assert hot < soon < later
+
+
+def test_render_email_stats_bar():
+    """统计条：今日新增 5 · 即将截止 2 · 本周累计 3。"""
+    items = [_h("a", 1), _h("b", 3), _h("c", 7), _h("d", 30), _h("e", None)]
+    _, html, _ = render_email(items, "2026-11-18")
+    assert re.search(r">5</div>\s*<div[^>]*>\s*今日新增", html)
+    assert re.search(r">2</div>\s*<div[^>]*>\s*即将截止", html)
+    assert re.search(r">3</div>\s*<div[^>]*>\s*本周累计", html)
+
+
+def test_render_email_text_version():
+    """纯文本版：- 列表 + 截止日期前缀，排序与 HTML 一致。"""
+    items = [_h("热赛事", 1), _h("晚赛事", 30)]
+    subject, html, text = render_email(items, "2026-11-18")
+    assert subject == "黑客松日报 - 2026-11-18（2 场可报名）"
+    assert "- [截止 " in text
+    assert "今日新增 2 场" in text
+    assert "报名: https://example.com/" in text
+    assert text.index("热赛事") < text.index("晚赛事")
+    assert "热赛事" in html
+
+
+def test_render_email_dark_mode_badges_and_width():
+    """600px 居中、明暗模式 meta+media+!important、红黄绿徽章。"""
+    items = [_h("hot", 1), _h("soon", 5), _h("later", 30), _h("unknown", None)]
+    _, html, _ = render_email(items, "2026-11-18")
+    assert 'name="color-scheme" content="light dark"' in html
+    assert "@media (prefers-color-scheme: dark)" in html
+    assert "!important" in html
+    assert "max-width: 600px" in html
+    for badge in ("badge-hot", "badge-soon", "badge-later", "badge-unknown"):
+        assert badge in html
+    assert "flex" not in html.lower()
+
+
+def test_render_email_keeps_autoescape():
+    """autoescape 保留：恶意标题不应注入 HTML。"""
+    _, html, _ = render_email([_h("<script>alert(1)</script>", 1)], "2026-11-18")
+    assert "<script>alert(1)</script>" not in html
+    assert "&lt;script&gt;" in html
+
+
+def test_render_empty_email():
+    """空日邮件：今日无新增 + 本周累计 + 即将截止 TOP3（HTML 与文本）。"""
+    subject, html, text = render_empty_email([_h("TOP1", 1), _h("TOP2", 2)], 9, "2026-11-18")
+    assert subject == "黑客松日报 - 2026-11-18（今日无新增）"
+    assert "今日无新增" in html
+    assert "本周累计 9 场" in html
+    assert "即将截止 TOP3" in html
+    assert "TOP1" in html and "TOP2" in html
+    assert "本周累计 9 场" in text
+    assert "- [截止 " in text and "TOP1" in text

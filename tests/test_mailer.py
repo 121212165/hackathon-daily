@@ -23,7 +23,7 @@ async def test_resend_send_calls_api_correctly():
             from_email="from@test.com",
             to_email="to@test.com",
         )
-        await mailer.send("测试主题", "<html/>")
+        await mailer.send("测试主题", "<html/>", "纯文本正文")
 
     mock_client.post.assert_awaited_once()
     call_kwargs = mock_client.post.await_args.kwargs
@@ -31,7 +31,28 @@ async def test_resend_send_calls_api_correctly():
     assert call_kwargs["json"]["to"] == ["to@test.com"]
     assert call_kwargs["json"]["subject"] == "测试主题"
     assert call_kwargs["json"]["html"] == "<html/>"
+    assert call_kwargs["json"]["text"] == "纯文本正文"
     assert call_kwargs["headers"]["Authorization"] == "Bearer re_test"
+
+
+async def test_resend_send_omits_text_when_not_provided():
+    """旧调用方不传 text 时，payload 不含 text 字段（向后兼容）。"""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"id": "email-xyz"}
+    mock_response.raise_for_status = MagicMock()
+
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=mock_response)
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.__aexit__.return_value = None
+
+    with patch("src.mailer.httpx.AsyncClient", return_value=mock_client):
+        mailer = ResendMailer(api_key="re_test", from_email="a@b.com", to_email="c@d.com")
+        await mailer.send("subject", "<html/>")
+
+    payload = mock_client.post.await_args.kwargs["json"]
+    assert "text" not in payload
 
 
 async def test_resend_send_retries_on_5xx_then_succeeds():

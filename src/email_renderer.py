@@ -14,6 +14,13 @@ _MARKDOWN_LINK_RE = re.compile(r"^\[.*?\]\((.+?)\)$")
 # 控制字符（C0 + DEL）— 邮件 href 中不应出现，防止 LLM 返回被污染的 URL
 _CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f]")
 
+# 分组顺序：hot → soon → later/unknown。分组只存在于渲染层，不写入数据层。
+_GROUPS = (
+    ("hot", "🔥 即将截止 (≤3 天)"),
+    ("soon", "📌 本周 (≤7 天)"),
+    ("later", "📅 后续"),
+)
+
 
 def safe_url(url: str) -> str:
     """规范化 URL，确保 href 可被邮件客户端正确识别为绝对链接。
@@ -64,14 +71,100 @@ def safe_url(url: str) -> str:
     return "#"
 
 
-def render_email(hackathons: list[Hackathon], today: str) -> tuple[str, str]:
-    """渲染邮件，返回 (subject, html)。"""
+def _env() -> Environment:
+    """构造 Jinja2 环境：自动转义 + safe_url 过滤器（防 URL / HTML 注入）。"""
     env = Environment(
         loader=FileSystemLoader(str(TEMPLATES_DIR)),
-        autoescape=select_autoescape(["html", "xml"]),
+        # .html.j2 的后缀是 j2，须显式列入，否则 select_autoescape 不会开启自动转义
+        autoescape=select_autoescape(["html", "xml", "j2"]),
     )
     env.filters["safe_url"] = safe_url
-    template = env.get_template("daily_email.html.j2")
-    html = template.render(hackathons=hackathons, today=today, count=len(hackathons))
+    return env
+
+
+def _sort_key(h: Hackathon) -> tuple[int, int]:
+    """days_left 升序；无截止日期（None）排最后。"""
+    days = h.days_left
+    if days is None:
+        return (1, 0)
+    return (0, days)
+
+
+def _prepare(hackathons: list[Hackathon]) -> tuple[list[dict], dict[str, int]]:
+    """排序 + 分组 + 统计条。HTML 版与纯文本版共用同一份结果。"""
+    ordered = sorted(hackathons, key=_sort_key)
+    buckets: dict[str, list[Hackathon]] = {"hot": [], "soon": [], "later": []}
+    for h in ordered:
+        urgency = h.urgency()
+        bucket = urgency if urgency in buckets else "later"
+        buckets[bucket].append(h)
+
+    groups = [
+        {"key": key, "label": label, "entries": buckets[key]} for key, label in _GROUPS
+    ]
+    hot = len(buckets["hot"])
+    soon = len(buckets["soon"])
+    stats = {
+        "new": len(hackathons),  # 今日新增（去重后待推送条数）
+        "hot": hot,  # 即将截止（≤3 天）
+        "week": hot + soon,  # 本周累计（≤7 天）
+    }
+    return groups, stats
+
+
+def _render_text(groups: list[dict], stats: dict[str, int], subject: str) -> str:
+    """纯文本版：分组小节 + "- " 列表 + 截止日期前缀，作为 multipart/alternative。"""
+    lines = [
+        subject,
+        "",
+        f"今日新增 {stats['new']} 场 · 即将截止 {stats['hot']} 场 · 本周累计 {stats['week']} 场",
+        "",
+    ]
+    for group in groups:
+        if not group["entries"]:
+            continue
+        lines.append(f"【{group['label']}】")
+        for h in group["entries"]:
+            lines.append(f"- [截止 {h.registration_deadline}] {h.name}（{h.organizer}）")
+            lines.append(f"  报名: {safe_url(h.registration_url)}")
+            if h.detail_url:
+                lines.append(f"  详情: {safe_url(h.detail_url)}")
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def render_email(hackathons: list[Hackathon], today: str) -> tuple[str, str, str]:
+    """渲染日报，返回 (subject, html, text)。subject 格式保持不变以兼容既有测试。"""
+    groups, stats = _prepare(hackathons)
     subject = f"黑客松日报 - {today}（{len(hackathons)} 场可报名）"
-    return subject, html
+    html = _env().get_template("daily_email.html.j2").render(
+        hackathons=hackathons,
+        today=today,
+        count=len(hackathons),
+        groups=groups,
+        stats=stats,
+    )
+    return subject, html, _render_text(groups, stats, subject)
+
+
+def render_empty_email(
+    top_upcoming: list[Hackathon], weekly_count: int, today: str
+) -> tuple[str, str, str]:
+    """渲染「今日无新增」邮件，返回 (subject, html, text)。
+
+    top_upcoming：从当日搜索结果里按 days_left 升序取出的即将截止 TOP3（只读）。
+    weekly_count：来自 store.count_pushed_last_7_days()（只读查询）。
+    """
+    subject = f"黑客松日报 - {today}（今日无新增）"
+    html = _env().get_template("empty.html.j2").render(
+        top=top_upcoming,
+        weekly_count=weekly_count,
+        today=today,
+    )
+    lines = [subject, "", f"今日无新增 · 本周累计 {weekly_count} 场"]
+    if top_upcoming:
+        lines += ["", "【即将截止 TOP3】"]
+        for h in top_upcoming:
+            lines.append(f"- [截止 {h.registration_deadline}] {h.name}（{h.organizer}）")
+            lines.append(f"  报名: {safe_url(h.registration_url)}")
+    return subject, html, "\n".join(lines).rstrip() + "\n"

@@ -1,6 +1,8 @@
+from datetime import timedelta
+
 import pytest
 
-from src.models import Hackathon
+from src.models import Hackathon, beijing_date
 
 
 def test_from_dict_complete():
@@ -48,3 +50,48 @@ def test_from_dict_empty_registration_url_raises():
     data = {"name": "测试", "registration_url": ""}
     with pytest.raises(ValueError, match="registration_url is required"):
         Hackathon.from_dict(data)
+
+
+def _with_deadline(deadline: str) -> Hackathon:
+    return Hackathon.from_dict(
+        {"registration_url": "https://example.com", "registration_deadline": deadline}
+    )
+
+
+@pytest.mark.parametrize(
+    ("days", "expected_left", "expected_urgency"),
+    [
+        (0, 0, "hot"),
+        (3, 3, "hot"),
+        (4, 4, "soon"),
+        (7, 7, "soon"),
+        (8, 8, "later"),
+    ],
+)
+def test_days_left_and_urgency_boundaries(days, expected_left, expected_urgency):
+    """边界：0/3 为 hot，4~7 为 soon，>7 为 later。"""
+    deadline = (beijing_date() + timedelta(days=days)).isoformat()
+    h = _with_deadline(deadline)
+    assert h.days_left == expected_left
+    assert h.urgency() == expected_urgency
+
+
+@pytest.mark.parametrize("bad", ["待定", "", "  ", "2026/08/01", "not-a-date", None])
+def test_days_left_invalid_returns_none_and_unknown(bad):
+    """缺省 / 非法日期 → days_left=None，urgency=unknown。"""
+    h = _with_deadline(bad)
+    assert h.days_left is None
+    assert h.urgency() == "unknown"
+
+
+def test_past_deadline_is_hot():
+    """已过期（days_left<0）仍落在 hot 档（≤3 天）。"""
+    deadline = (beijing_date() - timedelta(days=1)).isoformat()
+    assert _with_deadline(deadline).urgency() == "hot"
+
+
+def test_derived_fields_do_not_change_from_dict_contract():
+    """days_left 为纯派生属性，不进入构造参数 / from_dict 结果。"""
+    h = _with_deadline("2026-08-01")
+    assert "days_left" not in h.__dict__
+    assert h.registration_deadline == "2026-08-01"
