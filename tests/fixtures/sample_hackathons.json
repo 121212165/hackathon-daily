@@ -8,8 +8,8 @@
     "start_date": "2026-08-15",
     "end_date": "2026-08-17",
     "location": "线上",
-    "registration_url": "https://example.com/register",
-    "detail_url": "https://example.com"
+    "registration_url": "https://www.codefest.cn/register",
+    "detail_url": "https://www.codefest.cn"
   },
   {
     "name": "极简赛事",
@@ -20,7 +20,7 @@
     "start_date": "待定",
     "end_date": "待定",
     "location": "线上",
-    "registration_url": "https://example.com/minimal",
+    "registration_url": "https://www.codefest.cn/minimal",
     "detail_url": null
   }
 ]

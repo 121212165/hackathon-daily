@@ -28,7 +28,7 @@ def _h(name: str, days: int | None, type_tag: str = "AI") -> Hackathon:
         start_date="待定",
         end_date="待定",
         location="线上",
-        registration_url=f"https://example.com/{name}",
+        registration_url=f"https://www.codefest.cn/{name}",
         detail_url=None,
     )
 
@@ -37,9 +37,9 @@ def test_render_email_contains_name_and_url():
     hackathons = _load_fixture()
     subject, html, _ = render_email(hackathons, "2026-07-24")
     assert "示例AI黑客松" in html
-    assert "https://example.com/register" in html
+    assert "https://www.codefest.cn/register" in html
     assert "极简赛事" in html
-    assert "https://example.com/minimal" in html
+    assert "https://www.codefest.cn/minimal" in html
 
 
 def test_render_email_subject_format():
@@ -57,12 +57,12 @@ def test_render_email_displays_dates():
 
 
 def test_render_email_handles_missing_fields():
-    hackathons = [Hackathon.from_dict({"registration_url": "https://example.com/only"})]
+    hackathons = [Hackathon.from_dict({"registration_url": "https://www.codefest.cn/only"})]
     _, html, _ = render_email(hackathons, "2026-07-24")
     # from_dict 默认填充：organizer/type_tag="未知"，deadline/start/end="待定"
     assert "待定" in html
     assert "未知" in html
-    assert "https://example.com/only" in html
+    assert "https://www.codefest.cn/only" in html
 
 
 def test_render_email_displays_today():
@@ -76,9 +76,9 @@ def test_render_email_buttons_have_absolute_href():
     hackathons = _load_fixture()
     _, html, _ = render_email(hackathons, "2026-07-24")
     # 立即报名按钮
-    assert 'href="https://example.com/register"' in html
+    assert 'href="https://www.codefest.cn/register"' in html
     # 详情按钮
-    assert 'href="https://example.com"' in html
+    assert 'href="https://www.codefest.cn"' in html
 
 
 # ---------------- safe_url 单元测试 ----------------
@@ -189,7 +189,7 @@ def test_render_email_text_version():
     assert subject == "黑客松日报 - 2026-11-18（2 场可报名）"
     assert "- [截止 " in text
     assert "今日新增 2 场" in text
-    assert "报名: https://example.com/" in text
+    assert "报名: https://www.codefest.cn/" in text
     assert text.index("热赛事") < text.index("晚赛事")
     assert "热赛事" in html
 
@@ -239,7 +239,7 @@ def test_render_email_calm_variant():
     assert "text-shadow" not in html
     assert "repeating-linear-gradient" not in html
     assert "box-shadow" not in html
-    assert 'href="https://example.com/热赛事"' in html
+    assert 'href="https://www.codefest.cn/热赛事"' in html
     assert "热赛事" in text
 
 
@@ -271,3 +271,67 @@ def test_render_empty_email_calm_variant():
     assert "即将截止 TOP3" in html
     assert "TOP1" in html and "TOP2" in html
     assert "TOP1" in text
+
+
+# ---------------- 无效报名链接 → 回退赛事官网 ----------------
+
+
+def _h_with_urls(name: str, reg_url: str, detail_url: str | None) -> Hackathon:
+    return Hackathon(
+        name=name,
+        organizer="主办方",
+        type_tag="AI",
+        summary="",
+        registration_deadline=(beijing_date() + timedelta(days=1)).isoformat(),
+        start_date="待定",
+        end_date="待定",
+        location="线上",
+        registration_url=reg_url,
+        detail_url=detail_url,
+    )
+
+
+def test_register_button_falls_back_to_official_site():
+    """报名链接是 example.com 占位符时，「立即报名」跳到赛事官网 detail_url。"""
+    h = _h_with_urls(
+        "占位链接赛", "https://example.com/register", "https://www.official-site.cn/contest"
+    )
+    _, html, text = render_email([h], "2026-11-20")
+    assert 'href="https://www.official-site.cn/contest"' in html
+    assert "https://example.com" not in html
+    assert "报名: https://www.official-site.cn/contest" in text
+
+
+def test_register_button_hidden_when_no_usable_link():
+    """两个链接都无效时不渲染死链按钮。"""
+    h = _h_with_urls("死链赛", "https://example.com/register", "https://example.org")
+    _, html, text = render_email([h], "2026-11-20")
+    assert "立即报名" not in html
+    assert "详情" not in html
+    assert "报名: " not in text
+
+
+def test_detail_button_hidden_when_fallback_reuses_official_site():
+    """回退到官网后不再重复渲染同一个「详情」按钮。"""
+    h = _h_with_urls("单链接赛", "https://example.com/register", "https://www.official-site.cn")
+    _, html, _ = render_email([h], "2026-11-20")
+    assert html.count('href="https://www.official-site.cn"') == 1
+
+
+def test_register_button_prefers_valid_registration_url():
+    """报名链接有效时仍优先跳报名页，「详情」按钮保留。"""
+    h = _h_with_urls("正常赛", "https://www.codefest.cn/register", "https://www.codefest.cn")
+    _, html, _ = render_email([h], "2026-11-20")
+    assert 'href="https://www.codefest.cn/register"' in html
+    assert 'href="https://www.codefest.cn"' in html
+
+
+@pytest.mark.parametrize("style", ["bold", "calm"])
+def test_empty_email_register_button_uses_fallback(style):
+    """空日邮件 TOP3 同样用官网链接替换占位报名链接（两种风格）。"""
+    h = _h_with_urls(
+        "TOP占位", "https://example.com/register", "https://www.official-site.cn/contest"
+    )
+    _, html, _ = render_empty_email([h], 3, "2026-11-20", style=style)
+    assert 'href="https://www.official-site.cn/contest"' in html
+    assert "https://example.com" not in html

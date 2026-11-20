@@ -2,7 +2,7 @@ from datetime import timedelta
 
 import pytest
 
-from src.models import Hackathon, beijing_date
+from src.models import Hackathon, beijing_date, is_broken_link
 
 
 def test_from_dict_complete():
@@ -95,3 +95,79 @@ def test_derived_fields_do_not_change_from_dict_contract():
     h = _with_deadline("2026-08-01")
     assert "days_left" not in h.__dict__
     assert h.registration_deadline == "2026-08-01"
+
+
+# ---------------- 无效链接判定 / 报名按钮回退 ----------------
+
+
+@pytest.mark.parametrize(
+    ("url", "broken"),
+    [
+        ("https://example.com/register", True),
+        ("https://www.example.org/contest", True),
+        ("http://localhost:3000/register", True),
+        ("https://www.csu????.org/fullstack", True),
+        ("javascript:alert(1)", True),
+        ("/register", True),
+        ("", True),
+        (None, True),
+        ("https://www.codefest.cn/register", False),
+        ("www.codefest.cn/register", False),
+        ("<https://www.codefest.cn/register>", False),
+    ],
+)
+def test_is_broken_link(url, broken):
+    assert is_broken_link(url) is broken
+
+
+def test_register_link_prefers_registration_url():
+    h = Hackathon(
+        name="正常赛",
+        organizer="方",
+        type_tag="AI",
+        summary="",
+        registration_deadline="待定",
+        start_date="待定",
+        end_date="待定",
+        location="线上",
+        registration_url="https://www.codefest.cn/register",
+        detail_url="https://www.codefest.cn",
+    )
+    assert h.register_link == "https://www.codefest.cn/register"
+
+
+def test_register_link_falls_back_to_detail_url():
+    h = Hackathon(
+        name="占位赛",
+        organizer="方",
+        type_tag="AI",
+        summary="",
+        registration_deadline="待定",
+        start_date="待定",
+        end_date="待定",
+        location="线上",
+        registration_url="https://example.com/register",
+        detail_url="https://www.official-site.cn/contest",
+    )
+    assert h.register_link == "https://www.official-site.cn/contest"
+
+
+def test_register_link_empty_when_all_broken():
+    h = Hackathon(
+        name="死链赛",
+        organizer="方",
+        type_tag="AI",
+        summary="",
+        registration_deadline="待定",
+        start_date="待定",
+        end_date="待定",
+        location="线上",
+        registration_url="https://example.com/register",
+        detail_url="https://example.org",
+    )
+    assert h.register_link == ""
+
+
+def test_register_link_is_derived_not_stored():
+    h = _with_deadline("2026-08-01")
+    assert "register_link" not in h.__dict__

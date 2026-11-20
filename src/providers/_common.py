@@ -31,12 +31,14 @@ SYSTEM_PROMPT = """你是一名国内线上黑客松信息聚合助手。
   - start_date: 比赛开始日期 (YYYY-MM-DD 或 "待定")
   - end_date: 比赛结束日期 (YYYY-MM-DD 或 "待定")
   - location: "线上" 或包含线上描述
-  - registration_url: 报名链接（必填）
-  - detail_url: 官网或详情页链接（可选）
+  - registration_url: 报名链接（必填，必须是搜索结果里真实存在的网址）
+  - detail_url: 官网或详情页链接（可选，必须是搜索结果里真实存在的网址）
+- 严禁使用 example.com / example.org / example.net / localhost 等占位域名，严禁编造域名；
+  找不到真实报名链接就不要输出该赛事，绝不能照抄下面示例里的占位符
 - 只返回 JSON，不包含 markdown 代码块标记或任何解释性文字
 - 输出语言：中文
 
-示例输出：
+示例输出（仅演示字段结构，URL 为占位符，实际输出必须换成搜索到的真实链接）：
 [
   {
     "name": "示例黑客松",
@@ -47,8 +49,8 @@ SYSTEM_PROMPT = """你是一名国内线上黑客松信息聚合助手。
     "start_date": "2026-08-15",
     "end_date": "2026-08-17",
     "location": "线上",
-    "registration_url": "https://example.com/register",
-    "detail_url": "https://example.com"
+    "registration_url": "<真实报名链接>",
+    "detail_url": "<真实官网链接>"
   }
 ]
 """
@@ -103,6 +105,7 @@ STRUCTURE_PROMPT = """你是信息抽取助手。下面是一组网页搜索结�
 name, organizer, type_tag, summary, registration_deadline, start_date, end_date,
 location, registration_url（必填，取搜索结果中的真实链接）, detail_url。
 只保留确有报名链接的条目；无对应信息填 "待定" 或 ""。
+链接必须取自搜索结果原文，严禁使用 example.com 等占位域名或编造域名。
 只返回 JSON 数组，不包含 markdown 代码块或解释文字，输出语言为中文。"""
 
 

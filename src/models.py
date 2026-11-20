@@ -1,9 +1,70 @@
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
+from urllib.parse import urlsplit
 
 # 与 main.beijing_today() 保持一致：倒计时的一天以北京时间为准
 _BEIJING_TZ = timezone(timedelta(hours=8))
+
+# 这些域名是 LLM 照抄 system prompt 示例或编造的占位域名，不可能真的点开
+_PLACEHOLDER_HOSTS = frozenset(
+    {
+        "example.com",
+        "www.example.com",
+        "example.org",
+        "www.example.org",
+        "example.net",
+        "www.example.net",
+        "localhost",
+        "127.0.0.1",
+        "0.0.0.0",
+    }
+)
+
+# LLM 偶尔返回 [文字](url) 形式的链接
+_MD_LINK_RE = re.compile(r"^\[.*?\]\((.+?)\)$")
+
+
+def is_broken_link(url: object) -> bool:
+    """判断链接是否不可能真正点开（占位域名 / 非法 scheme / 乱码 host）。
+
+    这是「无效链接」的静态判定，不做网络请求（不阻塞发信流水线）：
+    - 空值 / 非字符串 / 非 http(s) scheme → 无效
+    - example.com / example.org / localhost 等占位域名 → 无效
+    - host 含 ? 等乱码字符（如 www.csu????.org）→ 无效
+    其余形态（含 markdown 包裹、尖括号）按清洗后的 URL 判定。
+    """
+    if not isinstance(url, str):
+        return True
+    text = url.strip()
+    md = _MD_LINK_RE.match(text)
+    if md:
+        text = md.group(1).strip()
+    if text.startswith("<") and text.endswith(">"):
+        text = text[1:-1].strip()
+    if not text:
+        return True
+    # LLM 输出损坏时会出现 www.csu????.org 这类乱码 host（urlsplit 会把 ? 当 query 分隔符）
+    if "??" in text:
+        return True
+    try:
+        parsed = urlsplit(text)
+        # 与 email_renderer.safe_url 保持一致：无 scheme 的裸域名按 https 处理
+        if parsed.scheme == "":
+            first = text.split("/", 1)[0]
+            if not text.startswith("/") and first[:1].isalnum() and "." in first:
+                parsed = urlsplit(f"https://{text}")
+        host = (parsed.hostname or "").lower()
+    except ValueError:
+        return True
+    if parsed.scheme not in ("http", "https") or not host:
+        return True
+    if host in _PLACEHOLDER_HOSTS:
+        return True
+    if "?" in host or "*" in host:
+        return True
+    return False
 
 
 def beijing_date() -> date:
@@ -45,6 +106,25 @@ class Hackathon:
             registration_url=url,
             detail_url=data.get("detail_url"),
         )
+
+    @property
+    def detail_link(self) -> str:
+        """赛事官网 / 详情页链接；占位或无效时返回空字符串。"""
+        if is_broken_link(self.detail_url):
+            return ""
+        return str(self.detail_url).strip()
+
+    @property
+    def register_link(self) -> str:
+        """邮件「立即报名」按钮实际跳转的地址（纯派生，不写入数据层）。
+
+        优先用报名链接；若报名链接是 example.com 等无效链接，则回退到
+        detail_url（赛事官网 / 详情页）；两者都无效时返回空字符串，
+        渲染层据此隐藏按钮，避免用户点到死链。
+        """
+        if not is_broken_link(self.registration_url):
+            return self.registration_url.strip()
+        return self.detail_link
 
     @property
     def days_left(self) -> int | None:

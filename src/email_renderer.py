@@ -137,9 +137,10 @@ def _render_text(groups: list[dict], stats: dict[str, int], subject: str) -> str
         lines.append(f"【{group['label']}】")
         for h in group["entries"]:
             lines.append(f"- [截止 {h.registration_deadline}] {h.name}（{h.organizer}）")
-            lines.append(f"  报名: {safe_url(h.registration_url)}")
-            if h.detail_url:
-                lines.append(f"  详情: {safe_url(h.detail_url)}")
+            if h.register_link:
+                lines.append(f"  报名: {safe_url(h.register_link)}")
+            if h.detail_link:
+                lines.append(f"  详情: {safe_url(h.detail_link)}")
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
@@ -183,5 +184,6 @@ def render_empty_email(
         lines += ["", "【即将截止 TOP3】"]
         for h in top_upcoming:
             lines.append(f"- [截止 {h.registration_deadline}] {h.name}（{h.organizer}）")
-            lines.append(f"  报名: {safe_url(h.registration_url)}")
+            if h.register_link:
+                lines.append(f"  报名: {safe_url(h.register_link)}")
     return subject, html, "\n".join(lines).rstrip() + "\n"

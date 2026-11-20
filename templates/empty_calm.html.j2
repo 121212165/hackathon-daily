@@ -118,7 +118,9 @@
     </tr>
     </table>
     <div class="meta-label" style="padding-top: 9px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 10px; color: #5C6270; letter-spacing: 0.06em;">报名截止 {{ h.registration_deadline }}</div>
-    <a href="{{ h.registration_url | safe_url }}" target="_blank" style="display: inline-block; margin-top: 11px; padding: 8px 18px; background-color: #D4FF00; border: 1px solid #D4FF00; border-radius: 6px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #16181D; text-decoration: none; letter-spacing: 0.04em;">立即报名 &rarr;</a>
+    {% if h.register_link %}
+    <a href="{{ h.register_link | safe_url }}" target="_blank" style="display: inline-block; margin-top: 11px; padding: 8px 18px; background-color: #D4FF00; border: 1px solid #D4FF00; border-radius: 6px; font-family: 'IBM Plex Mono', 'Courier New', monospace; font-size: 11px; font-weight: 700; color: #16181D; text-decoration: none; letter-spacing: 0.04em;">立即报名 &rarr;</a>
+    {% endif %}
   </td>
   </tr>
   </table>
