@@ -22,6 +22,12 @@ _PLACEHOLDER_HOSTS = frozenset(
     }
 )
 
+# LLM 会照抄 prompt 示例并派生出 example2.com / www.example3.com 等占位域名
+# （dry-run 实测漏网：http://www.example2.com/registration）
+_PLACEHOLDER_HOST_RE = re.compile(
+    r"^(?:www\d*\.)?(?:example|test|sample)\d*\.(?:com|org|net)$"
+)
+
 # LLM 偶尔返回 [文字](url) 形式的链接
 _MD_LINK_RE = re.compile(r"^\[.*?\]\((.+?)\)$")
 
@@ -60,7 +66,7 @@ def is_broken_link(url: object) -> bool:
         return True
     if parsed.scheme not in ("http", "https") or not host:
         return True
-    if host in _PLACEHOLDER_HOSTS:
+    if host in _PLACEHOLDER_HOSTS or _PLACEHOLDER_HOST_RE.match(host):
         return True
     if "?" in host or "*" in host:
         return True
