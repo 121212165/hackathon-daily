@@ -41,6 +41,19 @@ _PARKING_MARKERS = (
     "域名出售",
 )
 
+# 403 + 这些特征 = 反爬挑战页，普通浏览器点开也到不了报名页
+_BOT_CHALLENGE_MARKERS = (
+    "just a moment",
+    "cf-browser-verification",
+    "cf_chl_opt",
+    "attention required",
+    "checking your browser",
+    "enable javascript and cookies",
+)
+
+# SSL 证书错误：浏览器同样会拦截，必须判死（实测 www.iota.org.cn 证书域名不匹配）
+_SSL_ERROR_MARKERS = ("certificate", "ssl", "cert verify")
+
 DNS_TIMEOUT = 3.0
 HTTP_TIMEOUT = 5.0
 CONCURRENCY = 8
@@ -110,9 +123,15 @@ async def _reachable(
         text = resp.text[:5000].lower()
         if any(marker in text for marker in _PARKING_MARKERS):
             return False, "parking_page"
-    except (httpx.HTTPError, asyncio.TimeoutError):
+        if resp.status_code in (401, 403) and any(
+            marker in text for marker in _BOT_CHALLENGE_MARKERS
+        ):
+            return False, "bot_challenge"
+    except (httpx.HTTPError, asyncio.TimeoutError) as e:
+        if any(marker in str(e).lower() for marker in _SSL_ERROR_MARKERS):
+            return False, "ssl_error"
         # 网络不确定时放行，宁可保留可疑链接也不误杀真实赛事
-        logger.warning(f"[link-check] inconclusive for {url}, keeping (fail-open)")
+        logger.warning(f"[link-check] inconclusive for {url}, keeping (fail-open): {e}")
     return True, "ok"
 
 
