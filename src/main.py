@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 
 from .email_renderer import render_email, render_empty_email
+from .link_check import filter_reachable
 from .mailer import ResendMailer
 from .models import Hackathon
 from .providers import build_provider_chain
@@ -56,7 +57,8 @@ def _provider_key_present() -> bool:
 async def main() -> int:
     load_dotenv()
     today = beijing_today()
-    logger.info(f"Starting hackathon daily for {today}")
+    dry_run = os.environ.get("DRY_RUN") == "1"
+    logger.info(f"Starting hackathon daily for {today}" + (" [DRY-RUN]" if dry_run else ""))
 
     # 前置检查环境变量，避免搜索调用后才发现邮件配置缺失而浪费计费
     # Provider key：LLM/GLM/OPENAI 任一即可（各自 provider 认领）；邮件三项仍硬必填
@@ -87,6 +89,17 @@ async def main() -> int:
         return 1
 
     logger.info(f"Found {len(hackathons)} hackathons")
+
+    # 1b. 报名链接可达性校验：杜撰 / 死链在发信前拦下，避免用户点到死链
+    hackathons, dropped = await filter_reachable(hackathons)
+    for item in dropped:
+        logger.warning(
+            f"[link-check] dropped '{item.name}': {item.url} ({item.reason})"
+        )
+    if dropped:
+        logger.warning(f"[link-check] dropped {len(dropped)} unreachable link(s)")
+    logger.info(f"{len(hackathons)} hackathons with reachable links")
+
     # 搜索彻底失败（异常）已在上面 return 1；返回空列表视为"今天没搜到"，
     # 故障不伪装成日报 —— 这两种路径都不发邮件。
     if not hackathons:
@@ -110,6 +123,9 @@ async def main() -> int:
             count_pushed_last_7_days(),
             today,
         )
+        if dry_run:
+            logger.info(f"[DRY-RUN] would send empty-day digest: {subject}")
+            return 0
         try:
             await mailer.send(subject, html, text)
         except Exception as e:
@@ -121,6 +137,13 @@ async def main() -> int:
     # 3b. 非空日报
     logger.info(f"{len(unseen)} new hackathons to send")
     subject, html, text = render_email(unseen, today)
+
+    if dry_run:
+        logger.info(f"[DRY-RUN] subject: {subject}")
+        for h in unseen:
+            logger.info(f"[DRY-RUN] {h.name} -> {h.register_link}")
+        logger.info("[DRY-RUN] no email sent, no db changes")
+        return 0
 
     # 4. 发送
     try:

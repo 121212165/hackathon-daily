@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: '15 22 * * *'  # 提前至 UTC 22:15 抵消 Actions 调度延迟（实测 ~1h45m），约北京 08:00 送达
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run: validate links + log output, no email sent and no db changes'
+        required: false
+        default: false
+        type: boolean
 
 # 串行化运行：手动触发与 cron 不并行（排队而非取消，避免回写冲突）
 concurrency:
@@ -57,6 +63,7 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           MAIL_FROM: ${{ secrets.MAIL_FROM }}
           MAIL_TO: ${{ secrets.MAIL_TO }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
         run: python -m src.main
 
       - name: Persist dedup db and keepalive

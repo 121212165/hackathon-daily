@@ -19,6 +19,16 @@ import pytest
 from src.main import main
 
 
+@pytest.fixture(autouse=True)
+def _skip_link_check(monkeypatch):
+    """main 编排测试用占位 URL 做夹具；链接校验由 test_link_check.py 单独覆盖。"""
+
+    async def passthrough(items):
+        return items, []
+
+    monkeypatch.setattr("src.main.filter_reachable", passthrough)
+
+
 def _set_env(monkeypatch, **overrides):
     """设置完整必填环境变量，可用 overrides 覆盖单个变量。
 

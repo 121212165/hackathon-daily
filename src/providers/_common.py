@@ -130,8 +130,33 @@ def _structure_llm_config() -> tuple[str, dict[str, str], str] | None:
     return None
 
 
+def ground_urls(items: list[dict], evidence: str) -> list[dict]:
+    """硬校验：丢弃 URL 未出现在搜索结果原文中的条目（防 LLM 杜撰链接）。
+
+    prompt 里的「严禁编造域名」只是软约束；这里做字符串级硬校验。
+    比对时去掉 scheme 与首尾斜杠，容忍搜索结果的 http/https 差异；
+    detail_url 未出现在原文则置空（保留该条目）。
+    """
+    kept: list[dict] = []
+    for item in items:
+        reg = str(item.get("registration_url") or "").strip()
+        core = reg.split("://", 1)[-1].strip("/")
+        if core and core not in evidence and reg not in evidence:
+            logger.warning(f"Drop ungrounded registration URL: {reg}")
+            continue
+
+        det = str(item.get("detail_url") or "").strip()
+        if det:
+            det_core = det.split("://", 1)[-1].strip("/")
+            if det_core not in evidence and det not in evidence:
+                logger.warning(f"Drop ungrounded detail URL: {det}")
+                item["detail_url"] = None
+        kept.append(item)
+    return kept
+
+
 async def structure_search_results(items: list[dict], today: str) -> list[dict]:
-    """SERP 结果 → 一次便宜 LLM 调用 → extract_json 结构化。
+    """SERP 结果 → 一次便宜 LLM 调用 → extract_json 结构化（+ URL 证据绑定）。
 
     失败（无 LLM key / 调用失败 / JSON 解析失败）只 warning 并返回空列表，
     不阻塞其它搜索源。
@@ -154,7 +179,7 @@ async def structure_search_results(items: list[dict], today: str) -> list[dict]:
     }
     try:
         content = await call_chat_api(url, headers, payload, timeout=30.0, max_retries=1)
-        return extract_json(content)
+        return ground_urls(extract_json(content), evidence)
     except (ValueError, RuntimeError) as e:
         logger.warning(f"SERP structuring failed: {e}")
         return []
