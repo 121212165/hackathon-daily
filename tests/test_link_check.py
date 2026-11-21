@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from src.link_check import filter_reachable
-from src.models import Hackathon
+from src.models import Hackathon, is_broken_link
 from src.providers._common import ground_urls
 
 
@@ -104,6 +104,50 @@ async def test_parking_page_content_dropped(monkeypatch):
     )
     assert kept == []
     assert dropped[0].reason == "parking_page"
+
+
+async def test_bot_challenge_dropped(monkeypatch):
+    monkeypatch.setattr(
+        "src.link_check._resolve_host",
+        _resolver({"contest.example.net": {"1.2.3.4"}}),
+    )
+    monkeypatch.setattr(
+        "src.link_check.httpx.AsyncClient",
+        lambda **kwargs: _Client(_Resp(403, "Just a moment...")),
+    )
+    kept, dropped = await filter_reachable(
+        [_hackathon("https://contest.example.net/register")]
+    )
+    assert kept == []
+    assert dropped[0].reason == "bot_challenge"
+
+
+async def test_ssl_error_dropped(monkeypatch):
+    monkeypatch.setattr(
+        "src.link_check._resolve_host",
+        _resolver({"real.example.net": {"5.6.7.8"}}),
+    )
+    monkeypatch.setattr(
+        "src.link_check.httpx.AsyncClient",
+        lambda **kwargs: _Client(
+            httpx.ConnectError("[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed")
+        ),
+    )
+    kept, dropped = await filter_reachable(
+        [_hackathon("https://real.example.net/register")]
+    )
+    assert kept == []
+    assert dropped[0].reason == "ssl_error"
+
+
+def test_example_numbered_domains_are_placeholders():
+    """dry-run 漏网之鱼：example2.com / www.example3.com 必须判为占位域名。"""
+    for url in (
+        "http://www.example2.com/registration",
+        "https://example3.org/register",
+        "https://test1.com/signup",
+    ):
+        assert is_broken_link(url) is True, url
 
 
 async def test_registration_dead_detail_alive_promoted(monkeypatch):
